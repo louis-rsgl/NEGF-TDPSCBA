@@ -49,88 +49,76 @@ H_{\text{e-ph}}$$
 
 ## Leads
 
-$$
-H_{\text{leads}}
-================
+$$H_{\text{leads}}
+=
 
 \sum_{k\alpha}
 \epsilon_{k\alpha}
-c^\dagger_{k\alpha} c_{k\alpha}
-$$
+c^\dagger_{k\alpha} c_{k\alpha}$$
 
-where ( \alpha = L, R ).
+where ( $\alpha = L, R$ ).
 
 ---
 
 ## Device (single electronic level)
 
-$$
-H_{\text{device}}
-=================
+$$H_{\text{device}}
+=
 
 \epsilon_0 ,
-d^\dagger d
-$$
+d^\dagger d$$
 
 ---
 
 ## Lead–Device Coupling
 
-$$
-H_{\text{coupling}}
-===================
+$$H_{\text{coupling}}
+=
 
 \sum_{k\alpha}
 \left(
 t_{k\alpha} c^\dagger_{k\alpha} d
 +
 t_{k\alpha}^* d^\dagger c_{k\alpha}
-\right)
-$$
+\right)$$
 
 The coupling produces an **energy-dependent linewidth**
 
-$$
-\Gamma_\alpha(\omega)
-=====================
+$$\Gamma_\alpha(\omega)
+=
 
 \Gamma^0_\alpha
-\frac{W}{\omega^2 + W^2}
-$$
+\frac{W}{\omega^2 + W^2}$$
 
 where
 
-* (W) is the **lead bandwidth**
+* ($W$) is the **lead bandwidth**
 * finite bandwidth effects appear explicitly in the transient dynamics.
 
 ---
 
 ## Phonon Mode
 
-$$
-H_{\text{ph}}
-=============
+$$H_{\text{ph}}
+=
 
-\omega_q b^\dagger b
-$$
+\omega_q b^\dagger b$$
 
 ---
 
 ## Electron–Phonon Interaction
 
-$$
-H_{\text{e-ph}}
-===============
+$$H_{\text{e-ph}}
+=
 
 g_q
 d^\dagger d
-(b + b^\dagger)
-$$
+(b + b^\dagger)$$
 
 where
 
-* (g_q) is the electron-phonon coupling
-* ( \omega_q ) the phonon frequency.
+* ($g_q$) is the electron-phonon coupling
+* ( $\omega_q$ ) the phonon frequency.
 
 Electron-phonon scattering is evaluated within **SCBA**.
 
@@ -142,64 +130,53 @@ The transport problem is formulated in terms of
 
 * retarded Green function
 
-$$
-G^R(\omega)
-$$
+$$G^R(\omega)$$
 
 * lesser Green function
 
-$$
-G^<(\omega)
-$$
+$$G^<(\omega)$$
 
 ---
 
 ## Retarded Green Function
 
-$$
-G^R(\omega)
-===========
+$$G^R(\omega)
+=
 
 \left[
 \omega
-------
+-
+\epsilon_0
 
-## \epsilon_0
-
-## \Sigma^R_{\text{leads}}
+\Sigma^R_{\text{leads}}
 
 \Sigma^R_{\text{ph}}
-\right]^{-1}
-$$
+\right]^{-1}$$
 
 ---
 
 ## Lesser Green Function
 
-$$
-G^<(\omega)
-===========
+$$G^<(\omega)
+=
 
 G^R(\omega)
 \Sigma^<(\omega)
-G^A(\omega)
-$$
+G^A(\omega)$$
 
 ---
 
 ## Lead Self-Energy
 
-$$
-\Sigma^<_{\text{leads}}
+$$\Sigma^<_{\text{leads}}
 =======================
 
 i
 \sum_\alpha
 f_\alpha(\omega)
-\Gamma_\alpha(\omega)
-$$
+\Gamma_\alpha(\omega)$$
 
-where (f_\alpha) are the Fermi distributions of the leads.
+where ($f_\alpha$) are the Fermi distributions of the leads.
 
 ---
 
@@ -209,19 +186,15 @@ The nonequilibrium Green functions are obtained through a **self-consistent SCBA
 
 Initial guess
 
-$$
-G^R_0(\omega)
-=============
+$$G^R_0(\omega)
+=
 
-G^R_{\text{eq}}(\omega)
-$$
+G^R_{\text{eq}}(\omega)$$
 
-$$
-G^<_0(\omega)
-=============
+$$G^<_0(\omega)
+=
 
--2i,\text{Im}[G^R_0(\omega)] f(\omega)
-$$
+-2i,\text{Im}[G^R_0(\omega)] f(\omega)$$
 
 ---
 
@@ -229,21 +202,17 @@ $$
 
 At iteration (n)
 
-$$
-G^R_{n+1}(\omega)
-=================
+$$G^R_{n+1}(\omega)
+=
 
-[\omega-\epsilon_0-\Sigma^R(G_n)]^{-1}
-$$
+[\omega-\epsilon_0-\Sigma^R(G_n)]^{-1}$$
 
-$$
-G^<_{n+1}(\omega)
-=================
+$$G^<_{n+1}(\omega)
+=
 
 G^R_{n+1}
 \Sigma^<(G_n)
-G^A_{n+1}
-$$
+G^A_{n+1}$$
 
 ---
 
@@ -251,18 +220,14 @@ $$
 
 To stabilize convergence the solver uses **linear mixing**
 
-$$
-X_{n+1}
+$$X_{n+1}
 =======
 
-(1-\alpha)X_n + \alpha X_{\text{trial}}
-$$
+(1-\alpha)X_n + \alpha X_{\text{trial}}$$
 
 with
 
-$$
-X = (G^R, G^<)
-$$
+$$X = (G^R, G^<)$$
 
 ---
 
@@ -270,19 +235,15 @@ $$
 
 After convergence the **time-dependent current**
 
-$$
-J_\alpha(t)
-$$
+$$J_\alpha(t)$$
 
 is evaluated using the transient transport formalism derived in the original theory.
 
 The current depends on functions
 
-$$
-A_\alpha(\omega,t)
+$$A_\alpha(\omega,t)
 \qquad
-\Phi_\alpha(\omega,t)
-$$
+\Phi_\alpha(\omega,t)$$
 
 which are obtained from the converged Green functions.
 
@@ -380,9 +341,7 @@ pip install numpy scipy matplotlib tqdm
 
 The runtime scales roughly as
 
-$$
-O(N_{\text{iter}} \times N_\omega \times N_{\text{quad}})
-$$
+$$O(N_{\text{iter}} \times N_\omega \times N_{\text{quad}})$$
 
 where
 
