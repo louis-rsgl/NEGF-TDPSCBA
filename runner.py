@@ -1,15 +1,14 @@
 from __future__ import annotations
 
+import json
 import os
-import sys
-from contextlib import redirect_stderr, redirect_stdout
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from contextlib import redirect_stderr, redirect_stdout
 from datetime import datetime
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.widgets import Slider
 
 from backend.observables import current_alpha
 from backend.system_classes import LeadParams, System
@@ -25,16 +24,20 @@ VERBOSE: bool = True
 USE_FAKE_SOLVER: bool = False
 
 ALPHA_DEFAULT: str = "L"
-T_MAX: float = 2.0          # dimensionless, in units of ħ/Gamma
+T_MAX: float = 2.0  # dimensionless, in units of ħ/Gamma
 N_T: int = 20_000
 
-W_GRID = np.array([0.1, 1.0, 2.5, 5.0, 7.5, 10.0, 15, 20.0, 50, 100], dtype=float)
-GQ_GRID = np.array([0.0, 0.02, 0.1, 2.5, 0.5], dtype=float)
+W_GRID = np.array([0.1, 1.0, 2.5, 5.0, 7.5, 10.0, 15.0, 20.0, 50.0, 100.0], dtype=float)
+GQ_GRID = np.array([0.0, 0.02, 0.1, 0.5, 2.5], dtype=float)
 
 PARALLEL: bool = True
-MAX_WORKERS: int = 50
+MAX_WORKERS: int | None = 50
 
-LOG_ROOT = Path("")
+USE_TEX: bool = True
+SAVE_SVG: bool = True
+SHOW_PLOTS: bool = False
+
+RUN_BASE = Path(".")  # each run becomes ./run_YYYYMMDD_HHMMSS
 
 
 # =============================================================================
@@ -46,7 +49,8 @@ class TimestampedWriter:
     Wrap a text stream and prepend a timestamp to each completed line.
     This keeps existing print() output but makes logs easier to inspect.
     """
-    def __init__(self, stream):
+
+    def __init__(self, stream) -> None:
         self.stream = stream
         self._buffer = ""
 
@@ -55,27 +59,61 @@ class TimestampedWriter:
 
         while "\n" in self._buffer:
             line, self._buffer = self._buffer.split("\n", 1)
-            self.stream.write(f"{line}\n")
+            ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            self.stream.write(f"[{ts}] {line}\n")
 
         self.stream.flush()
         return len(text)
 
     def flush(self) -> None:
         if self._buffer:
-            self.stream.write(f"{self._buffer}\n")
+            ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            self.stream.write(f"[{ts}] {self._buffer}\n")
             self._buffer = ""
         self.stream.flush()
 
 
-def make_run_log_dir(root: Path = LOG_ROOT) -> Path:
+def make_run_dir(base: Path = RUN_BASE) -> Path:
     run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_dir = root / f"run_{run_id}"
-    log_dir.mkdir(parents=True, exist_ok=False)
-    return log_dir
+    run_dir = base / f"run_{run_id}"
+    run_dir.mkdir(parents=True, exist_ok=False)
+    (run_dir / "logs").mkdir(exist_ok=False)
+    (run_dir / "figures").mkdir(exist_ok=False)
+    return run_dir
 
 
 def worker_log_path(log_dir: Path, i: int, j: int, W: float, g_q: float) -> Path:
     return log_dir / f"worker_i{i}_j{j}_W{W:.3f}_gq{g_q:.3f}.log"
+
+
+def master_log_path(run_dir: Path) -> Path:
+    return run_dir / "master.log"
+
+
+def figure_path(fig_dir: Path, alpha: str, W: float, g_q: float) -> Path:
+    return fig_dir / f"J_{alpha}_W{W:.3f}_gq{g_q:.3f}.svg"
+
+
+def write_run_metadata(run_dir: Path) -> None:
+    metadata = {
+        "created_at": datetime.now().isoformat(),
+        "GAMMA": GAMMA,
+        "VERBOSE": VERBOSE,
+        "USE_FAKE_SOLVER": USE_FAKE_SOLVER,
+        "ALPHA_DEFAULT": ALPHA_DEFAULT,
+        "T_MAX": T_MAX,
+        "N_T": N_T,
+        "W_GRID": W_GRID.tolist(),
+        "GQ_GRID": GQ_GRID.tolist(),
+        "PARALLEL": PARALLEL,
+        "MAX_WORKERS": MAX_WORKERS,
+        "USE_TEX": USE_TEX,
+        "SAVE_SVG": SAVE_SVG,
+        "SHOW_PLOTS": SHOW_PLOTS,
+    }
+
+    with open(run_dir / "run_info.json", "w", encoding="utf-8") as fh:
+        json.dump(metadata, fh, indent=2)
 
 
 # =============================================================================
@@ -112,9 +150,9 @@ def make_sys(W: float, g_q: float) -> System:
         e_max=10.0,
         omega_min=-10.0,
         omega_max=10.0,
-        scba_max_iter=2000,
-        scba_tol_abs=1e-4,
-        scba_tol_rel=1e-3,
+        scba_max_iter=2_000_000,
+        scba_tol_abs=1e-5,
+        scba_tol_rel=1e-4,
         scba_mixing=0.0001,
         scba_min_iter=10,
         verbose=VERBOSE,
@@ -171,9 +209,15 @@ def compute_current(
             print(f"Fake current evaluation | alpha={alpha} | W={W:.3f} | g_q={g_q:.3f}")
             print("=" * 82)
 
-        t_dimless, I_dimless = fake_current_alpha(sys=sys, alpha=alpha, t_max=t_max, n_t=n_t)
+        t_dimless, I_dimless = fake_current_alpha(
+            sys=sys,
+            alpha=alpha,
+            t_max=t_max,
+            n_t=n_t,
+        )
     else:
         sys.launch()
+
         if VERBOSE:
             sys.reporter().print_unit_system(GAMMA)
 
@@ -212,6 +256,7 @@ def _compute_current_job(
 
         with redirect_stdout(writer), redirect_stderr(writer):
             pid = os.getpid()
+
             print("#" * 82)
             print("Worker started")
             print(f"pid={pid}")
@@ -231,11 +276,9 @@ def _compute_current_job(
                     t_max=t_max,
                     n_t=n_t,
                 )
-
                 print("Worker finished successfully")
                 print(f"max|J| = {np.max(np.abs(current)):.6e} µA")
                 print(f"log_path = {log_path}")
-
             except Exception:
                 print("Worker failed with exception:")
                 import traceback
@@ -256,11 +299,13 @@ def precompute_currents_parallel(
     t_max: float = T_MAX,
     n_t: int = N_T,
     max_workers: int | None = None,
+    log_dir: Path | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
+    if log_dir is None:
+        raise ValueError("log_dir must be provided for parallel precomputation.")
+
     t_ref: np.ndarray | None = None
     J_grid = np.empty((len(W_grid), len(gq_grid), n_t), dtype=np.complex128)
-
-    log_dir = make_run_log_dir()
 
     jobs: list[tuple[int, int, float, float, str, float, int, str]] = [
         (i, j, float(W), float(gq), alpha, t_max, n_t, str(log_dir))
@@ -318,6 +363,93 @@ def precompute_currents_parallel(
     return t_ref, J_grid
 
 
+def precompute_currents_serial(
+    W_grid: np.ndarray,
+    gq_grid: np.ndarray,
+    alpha: str = ALPHA_DEFAULT,
+    t_max: float = T_MAX,
+    n_t: int = N_T,
+    log_dir: Path | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
+    if log_dir is None:
+        raise ValueError("log_dir must be provided for serial precomputation.")
+
+    t_ref: np.ndarray | None = None
+    J_grid = np.empty((len(W_grid), len(gq_grid), n_t), dtype=np.complex128)
+
+    total = len(W_grid) * len(gq_grid)
+    count = 0
+
+    print()
+    print("#" * 82)
+    print("Beginning SERIAL current precomputation over parameter grid")
+    print("#" * 82)
+    print(f"Gamma = {GAMMA:.6e} eV")
+    print(f"alpha = {alpha}")
+    print(f"t_max (dimensionless) = {t_max}")
+    print(f"n_t = {n_t}")
+    print(f"number of W values = {len(W_grid)}")
+    print(f"number of g_q values = {len(gq_grid)}")
+    print(f"total jobs = {total}")
+    print(f"log_dir = {log_dir}")
+
+    for i, W in enumerate(W_grid):
+        for j, gq in enumerate(gq_grid):
+            log_path = worker_log_path(log_dir, i, j, float(W), float(gq))
+
+            with open(log_path, "w", encoding="utf-8", buffering=1) as raw_fh:
+                writer = TimestampedWriter(raw_fh)
+
+                with redirect_stdout(writer), redirect_stderr(writer):
+                    print("#" * 82)
+                    print("Serial job started")
+                    print(f"job indices: i={i}, j={j}")
+                    print(f"W={W:.6f}")
+                    print(f"g_q={gq:.6f}")
+                    print(f"alpha={alpha}")
+                    print(f"t_max={t_max}")
+                    print(f"n_t={n_t}")
+                    print("#" * 82)
+
+                    t, current = compute_current(
+                        W=float(W),
+                        g_q=float(gq),
+                        alpha=alpha,
+                        t_max=t_max,
+                        n_t=n_t,
+                    )
+
+                    print("Serial job finished successfully")
+                    print(f"max|J| = {np.max(np.abs(current)):.6e} µA")
+                    print(f"log_path = {log_path}")
+
+            if t_ref is None:
+                t_ref = t
+            elif not np.allclose(t, t_ref):
+                raise ValueError("Inconsistent time grids encountered during precomputation.")
+
+            J_grid[i, j, :] = current
+            count += 1
+
+            print(
+                f"Stored current {count}/{total} | "
+                f"(i={i}, j={j}) | "
+                f"max|J| = {np.max(np.abs(current)):.6e} µA | "
+                f"log={log_path}",
+                flush=True,
+            )
+
+    if t_ref is None:
+        raise RuntimeError("No currents were computed.")
+
+    print()
+    print("#" * 82)
+    print("Finished serial current precomputation")
+    print("#" * 82)
+
+    return t_ref, J_grid
+
+
 def precompute_currents(
     W_grid: np.ndarray,
     gq_grid: np.ndarray,
@@ -326,6 +458,7 @@ def precompute_currents(
     n_t: int = N_T,
     parallel: bool = PARALLEL,
     max_workers: int | None = MAX_WORKERS,
+    log_dir: Path | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     if parallel:
         return precompute_currents_parallel(
@@ -335,25 +468,154 @@ def precompute_currents(
             t_max=t_max,
             n_t=n_t,
             max_workers=max_workers,
+            log_dir=log_dir,
         )
 
-    raise NotImplementedError("Serial path omitted here for brevity.")
+    return precompute_currents_serial(
+        W_grid=W_grid,
+        gq_grid=gq_grid,
+        alpha=alpha,
+        t_max=t_max,
+        n_t=n_t,
+        log_dir=log_dir,
+    )
 
 
 # =============================================================================
 # Plot helpers
 # =============================================================================
 
-def nearest_index(values: np.ndarray, x: float) -> int:
-    return int(np.argmin(np.abs(values - x)))
+def configure_matplotlib(use_tex: bool = USE_TEX) -> None:
+    plt.rcParams["font.family"] = "serif"
+    plt.rcParams["font.size"] = 18
+    plt.rcParams["text.usetex"] = use_tex
+
+    if use_tex:
+        plt.rcParams["text.latex.preamble"] = r"\usepackage{amsmath}"
 
 
 def make_title(alpha: str, W: float, g_q: float) -> str:
-    return rf"Transient current $J_{{{alpha}}}(t)$ | $W={W:.3f}\Gamma$, $g_q={g_q:.3f}\Gamma$"
+    return (
+        rf"Transient current $J_{{{alpha}}}(t)$"
+        "\n"
+        rf"$W={W:.3f}\Gamma,\quad g_q={g_q:.3f}\Gamma$"
+    )
 
 
 def make_ylabel(alpha: str) -> str:
     return rf"$J_{{{alpha}}}(t)$ ($\mu$A)"
+
+
+def save_current_plot_svg(
+    t_ps: np.ndarray,
+    current_uA: np.ndarray,
+    alpha: str,
+    W: float,
+    g_q: float,
+    out_path: Path,
+) -> None:
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    ax.plot(
+        t_ps,
+        np.real(current_uA),
+        linewidth=2.0,
+        label=rf"$\mathrm{{Re}}\,J_{{{alpha}}}(t)$",
+    )
+    ax.plot(
+        t_ps,
+        np.imag(current_uA),
+        linewidth=2.0,
+        linestyle="--",
+        label=rf"$\mathrm{{Im}}\,J_{{{alpha}}}(t)$",
+    )
+
+    ax.set_xlabel(r"$t$ (ps)")
+    ax.set_ylabel(make_ylabel(alpha))
+    ax.set_title(make_title(alpha, W, g_q))
+    ax.grid(True, alpha=0.3)
+    ax.legend()
+
+    fig.savefig(out_path, format="svg", bbox_inches="tight")
+    plt.close(fig)
+
+
+def save_all_current_plots_svg(
+    t_ps: np.ndarray,
+    J_grid_uA: np.ndarray,
+    W_grid: np.ndarray,
+    gq_grid: np.ndarray,
+    alpha: str,
+    fig_dir: Path,
+) -> None:
+    total = len(W_grid) * len(gq_grid)
+    count = 0
+
+    print()
+    print("#" * 82)
+    print("Saving SVG figures")
+    print("#" * 82)
+    print(f"figure_dir = {fig_dir}")
+    print(f"total figures = {total}")
+
+    for i, W in enumerate(W_grid):
+        for j, g_q in enumerate(gq_grid):
+            out_path = figure_path(fig_dir, alpha, float(W), float(g_q))
+
+            save_current_plot_svg(
+                t_ps=t_ps,
+                current_uA=J_grid_uA[i, j, :],
+                alpha=alpha,
+                W=float(W),
+                g_q=float(g_q),
+                out_path=out_path,
+            )
+
+            count += 1
+            print(f"Saved figure {count}/{total} | {out_path}", flush=True)
+
+    print()
+    print("#" * 82)
+    print("Finished saving SVG figures")
+    print("#" * 82)
+
+
+def show_single_reference_plot(
+    t_ps: np.ndarray,
+    J_grid_uA: np.ndarray,
+    W_grid: np.ndarray,
+    gq_grid: np.ndarray,
+    alpha: str,
+    W0: float = 20.0,
+    gq0: float = 0.1,
+) -> None:
+    i0 = int(np.argmin(np.abs(W_grid - W0)))
+    j0 = int(np.argmin(np.abs(gq_grid - gq0)))
+    current = J_grid_uA[i0, j0, :]
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    ax.plot(
+        t_ps,
+        np.real(current),
+        linewidth=2.0,
+        label=rf"$\mathrm{{Re}}\,J_{{{alpha}}}(t)$",
+    )
+    ax.plot(
+        t_ps,
+        np.imag(current),
+        linewidth=2.0,
+        linestyle="--",
+        label=rf"$\mathrm{{Im}}\,J_{{{alpha}}}(t)$",
+    )
+
+    ax.set_xlabel(r"$t$ (ps)")
+    ax.set_ylabel(make_ylabel(alpha))
+    ax.set_title(make_title(alpha, float(W_grid[i0]), float(gq_grid[j0])))
+    ax.grid(True, alpha=0.3)
+    ax.legend()
+
+    plt.show()
 
 
 # =============================================================================
@@ -361,88 +623,63 @@ def make_ylabel(alpha: str) -> str:
 # =============================================================================
 
 def main() -> None:
-    plt.rcParams["font.family"] = "DejaVu Serif"
-    plt.rcParams["font.size"] = 18
+    run_dir = make_run_dir()
+    log_dir = run_dir / "logs"
+    fig_dir = run_dir / "figures"
+    write_run_metadata(run_dir)
 
-    alpha0 = ALPHA_DEFAULT
+    with open(master_log_path(run_dir), "w", encoding="utf-8", buffering=1) as raw_fh:
+        writer = TimestampedWriter(raw_fh)
 
-    t_ps, J_grid_uA = precompute_currents(
-        W_grid=W_GRID,
-        gq_grid=GQ_GRID,
-        alpha=alpha0,
-        t_max=T_MAX,
-        n_t=N_T,
-        parallel=PARALLEL,
-        max_workers=MAX_WORKERS,
-    )
+        with redirect_stdout(writer), redirect_stderr(writer):
+            configure_matplotlib(use_tex=USE_TEX)
 
-    W0 = 20.0
-    gq0 = 0.1
+            alpha0 = ALPHA_DEFAULT
 
-    i0 = nearest_index(W_GRID, W0)
-    j0 = nearest_index(GQ_GRID, gq0)
-    I0 = J_grid_uA[i0, j0, :]
+            print("#" * 82)
+            print("Run started")
+            print(f"run_dir = {run_dir}")
+            print(f"log_dir = {log_dir}")
+            print(f"fig_dir = {fig_dir}")
+            print(f"USE_TEX = {USE_TEX}")
+            print(f"SAVE_SVG = {SAVE_SVG}")
+            print(f"SHOW_PLOTS = {SHOW_PLOTS}")
+            print("#" * 82)
 
-    fig, ax = plt.subplots(figsize=(10, 6))
-    plt.subplots_adjust(left=0.14, bottom=0.28)
+            t_ps, J_grid_uA = precompute_currents(
+                W_grid=W_GRID,
+                gq_grid=GQ_GRID,
+                alpha=alpha0,
+                t_max=T_MAX,
+                n_t=N_T,
+                parallel=PARALLEL,
+                max_workers=MAX_WORKERS,
+                log_dir=log_dir,
+            )
 
-    (line_re,) = ax.plot(
-        t_ps,
-        np.real(I0),
-        linewidth=2.0,
-        label=rf"$\mathrm{{Re}}\,J_{{{alpha0}}}(t)$",
-    )
-    (line_im,) = ax.plot(
-        t_ps,
-        np.imag(I0),
-        linewidth=2.0,
-        linestyle="--",
-        label=rf"$\mathrm{{Im}}\,J_{{{alpha0}}}(t)$",
-    )
+            if SAVE_SVG:
+                save_all_current_plots_svg(
+                    t_ps=t_ps,
+                    J_grid_uA=J_grid_uA,
+                    W_grid=W_GRID,
+                    gq_grid=GQ_GRID,
+                    alpha=alpha0,
+                    fig_dir=fig_dir,
+                )
 
-    ax.set_xlabel(r"$t$ (ps)")
-    ax.set_ylabel(make_ylabel(alpha0))
-    ax.set_title(make_title(alpha0, W_GRID[i0], GQ_GRID[j0]))
-    ax.grid(True, alpha=0.3)
-    ax.legend()
+            print("#" * 82)
+            print("Run finished successfully")
+            print("#" * 82)
 
-    ax_W = plt.axes([0.14, 0.16, 0.70, 0.03])
-    ax_gq = plt.axes([0.14, 0.09, 0.70, 0.03])
-
-    s_W = Slider(
-        ax=ax_W,
-        label=r"$W/\Gamma$",
-        valmin=float(W_GRID.min()),
-        valmax=float(W_GRID.max()),
-        valinit=float(W0),
-    )
-
-    s_gq = Slider(
-        ax=ax_gq,
-        label=r"$g_q/\Gamma$",
-        valmin=float(GQ_GRID.min()),
-        valmax=float(GQ_GRID.max()),
-        valinit=float(gq0),
-    )
-
-    def update(_val=None) -> None:
-        i = nearest_index(W_GRID, s_W.val)
-        j = nearest_index(GQ_GRID, s_gq.val)
-
-        current = J_grid_uA[i, j, :]
-
-        line_re.set_ydata(np.real(current))
-        line_im.set_ydata(np.imag(current))
-
-        ax.relim()
-        ax.autoscale_view()
-        ax.set_title(make_title(alpha0, W_GRID[i], GQ_GRID[j]))
-        fig.canvas.draw_idle()
-
-    s_W.on_changed(update)
-    s_gq.on_changed(update)
-
-    plt.show()
+    if SHOW_PLOTS:
+        configure_matplotlib(use_tex=USE_TEX)
+        show_single_reference_plot(
+            t_ps=t_ps,
+            J_grid_uA=J_grid_uA,
+            W_grid=W_GRID,
+            gq_grid=GQ_GRID,
+            alpha=ALPHA_DEFAULT,
+        )
 
 
 if __name__ == "__main__":
