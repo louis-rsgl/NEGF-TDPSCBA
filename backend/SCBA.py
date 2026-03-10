@@ -326,6 +326,7 @@ class Solver:
                     f"[noneq] iter={it:4d} "
                     f"err_GR={err_GR:.3e} "
                     f"err_Gless={err_Gless:.3e}"
+                    , flush=True
                 )
 
             gr_ok = (err_GR_abs < self.tol_abs) or (err_GR_rel < self.tol_rel)
