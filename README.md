@@ -12,8 +12,6 @@ Phys. Rev. B **74**, 085324 (2006).
 
 Unlike most transient transport approaches, this framework **does not rely on the wide-band limit**, allowing the study of **finite-bandwidth effects in time-dependent transport**.
 
----
-
 # Physical Model
 
 The system is a **lead–device–lead (LDL)** configuration:
@@ -30,31 +28,24 @@ The scattering region contains
 
 Transport is treated using the **nonequilibrium Green function formalism**.
 
----
-
-# Hamiltonian
+## Hamiltonian
 
 The system Hamiltonian is
 
 $$H = H_{\text{leads}} + H_{\text{device}} + H_{\text{coupling}} + H_{\text{e-ph}}$$
 
----
-
-## Leads
+### Leads
 
 $$H_{\text{leads}} = \sum_{k\alpha} \epsilon_{k\alpha} c^\dagger_{k\alpha} c_{k\alpha}$$
 
 where $\alpha = L, R$.
 
----
-
-## Device (single electronic level)
+### Device (single electronic level)
 
 $$H_{\text{device}} = \epsilon_0, d^\dagger d$$
 
----
 
-## Lead–Device Coupling
+### Lead–Device Coupling
 
 $$H_{\text{coupling}} = \sum_{k\alpha} \left( t_{k\alpha} c^\dagger_{k\alpha} d + t_{k\alpha}^* d^\dagger c_{k\alpha} \right)$$
 
@@ -67,15 +58,12 @@ where
 * $W$ is the **lead bandwidth**
 * finite bandwidth effects appear explicitly in the transient dynamics.
 
----
-
-## Phonon Mode
+### Phonon Mode
 
 $$H_{\text{ph}} = \omega_q b^\dagger b$$
 
----
 
-## Electron–Phonon Interaction
+### Electron–Phonon Interaction
 
 $$H_{\text{e-ph}} = g_q, d^\dagger d (b + b^\dagger)$$
 
@@ -85,8 +73,6 @@ where
 * $\omega_q$ is the phonon frequency.
 
 Electron–phonon scattering is evaluated within **SCBA**.
-
----
 
 # Nonequilibrium Green Functions
 
@@ -100,27 +86,19 @@ $$G^R(\omega)$$
 
 $$G^<(\omega)$$
 
----
-
 ## Retarded Green Function
 
 $$G^R(\omega) = \left[\omega - \epsilon_0 - \Sigma^R_{\text{leads}}(\omega) - \Sigma^R_{\text{ph}}(\omega)\right]^{-1}$$
-
----
 
 ## Lesser Green Function
 
 $$G^<(\omega) = G^R(\omega)\Sigma^<(\omega)G^A(\omega)$$
 
----
-
 ## Lead Self-Energy
 
-$$\Sigma^<*{\text{leads}}(\omega) = i\sum*\alpha f_\alpha(\omega)\Gamma_\alpha(\omega)$$
+$$\Sigma^< {\text{leads}}(\omega) = i\sum_\alpha f_\alpha(\omega)\Gamma_\alpha(\omega)$$
 
 where $f_\alpha(\omega)$ are the Fermi distributions of the leads.
-
----
 
 # Numerical Method
 
@@ -132,8 +110,6 @@ $$G^R_0(\omega) = G^R_{\text{eq}}(\omega)$$
 
 $$G^<_0(\omega) = -2i,\text{Im}[G^R_0(\omega)]f(\omega)$$
 
----
-
 ## Iteration
 
 At iteration $n$
@@ -141,8 +117,6 @@ At iteration $n$
 $$G^R_{n+1}(\omega) = [\omega - \epsilon_0 - \Sigma^R(G_n)]^{-1}$$
 
 $$G^<*{n+1}(\omega) = G^R*{n+1}\Sigma^<(G_n)G^A_{n+1}$$
-
----
 
 ## Mixing
 
@@ -154,71 +128,13 @@ with
 
 $$X = (G^R, G^<)$$
 
----
-
 # Transient Current
 
 After convergence the **time-dependent current**
 
 $$J_\alpha(t)$$
 
-is evaluated using the transient transport formalism derived in the original theory.
-
-The current depends on
-
-$$A_\alpha(\omega,t), \qquad \Phi_\alpha(\omega,t)$$
-
-which are obtained from the converged Green functions.
-
----
-
-# Project Structure
-
-```
-backend/
-
-system_classes.py
-    System parameters and configuration
-
-SCBA.py
-    Self-consistent NEGF solver
-
-green_function.py
-    Equilibrium Green functions and pole expansion
-
-distribution.py
-    Fermi and Bose distributions
-
-observables.py
-    Current evaluation and kernels
-
-runner.py
-    Interactive simulation runner
-```
-
----
-
-# Example System Definition
-
-```python
-sys = System(
-    W=5.0,
-    g_q=0.2,
-    w_q=0.2,
-    e_0=0.0
-)
-```
-
-Lead parameters
-
-```python
-LeadParams(
-    Gamma0,
-    Delta,
-    beta,
-    mu
-)
-```
+is evaluated using the transient transport formalism derived from the original theory but with the phonons.
 
 ---
 
@@ -240,13 +156,14 @@ The runner
 
 # Dependencies
 
-Python ≥ 3.10
+Python 3.13
 
 Required packages
 
 ```
 numpy
 scipy
+simpy
 matplotlib
 tqdm
 ```
@@ -254,22 +171,8 @@ tqdm
 Install with
 
 ```
-pip install numpy scipy matplotlib tqdm
+pip install numpy scipy matplotlib tqdm simpy
 ```
-
----
-
-# Performance Notes
-
-The runtime scales roughly as
-
-$$O(N_{\text{iter}} \times N_\omega \times N_{\text{quad}})$$
-
-where
-
-* $N_\omega$ is the frequency grid
-* $N_{\text{iter}}$ the SCBA iterations
-* $N_{\text{quad}}$ quadrature operations.
 
 ---
 
@@ -301,24 +204,42 @@ Research code for studying
 
 If you use this code in research, please cite
 
-Maciejko, J., Wang, J., & Guo, H.
-*Time-dependent quantum transport far from equilibrium: An exact nonlinear response theory*
-Physical Review B **74**, 085324 (2006).
+Good idea — many research repos **cite the GitHub repository first**, especially before the paper associated with the code is published or finalized. The best practice is:
 
-DOI:
+* keep the **DOI badge if you want**
+* add a **GitHub citation block**
+* provide a **BibTeX entry for the repository**
 
-[https://doi.org/10.1103/PhysRevB.74.085324](https://doi.org/10.1103/PhysRevB.74.085324)
+Below is the **clean replacement for your entire citation section**.
 
-BibTeX:
+---
+
+# Citation
+
+If you use **NEGF-TDPSCBA** in your research, please cite the repository:
+
+```
+Rossignol, Louis and Guo, Hong.
+NEGF-TDPSCBA: Time-Dependent Quantum Transport far from equilibrium with Electron-Phonon SCBA in Finite Band Limit.
+GitHub repository.
+```
+
+Repository:
+
+```
+https://github.com/louis-rsgl/NEGF-TDPSCBA
+```
+
+---
+
+## BibTeX
 
 ```bibtex
-@article{Maciejko2006,
-  author = {Maciejko, Joseph and Wang, Jian and Guo, Hong},
-  title = {Time-dependent quantum transport far from equilibrium: An exact nonlinear response theory},
-  journal = {Physical Review B},
-  volume = {74},
-  pages = {085324},
-  year = {2006},
-  doi = {10.1103/PhysRevB.74.085324}
+@software{rossignol_negf_tdpscba,
+  author = {Rossignol, Louis and Guo, Hong},
+  title = {NEGF-TDPSCBA: Time-Dependent Quantum Transport with Electron-Phonon SCBA},
+  year = {2026},
+  publisher = {GitHub},
+  url = {https://github.com/louis-rsgl/NEGF-TDPSCBA}
 }
 ```
