@@ -9,17 +9,24 @@ import scipy as sp
 from backend.distribution import bose_einstein, fermi_dirac
 from backend.green_function import GR_eq
 
-from tqdm import tqdm
+try:
+    from tqdm.auto import tqdm
+except ImportError:
+    tqdm = None
 
 
 @dataclass
 class SolverResult:
     converged: bool
     n_iter: int
-    err_GR: float
-    err_Gless: float
-    history_GR: list[float] = field(default_factory=list)
-    history_Gless: list[float] = field(default_factory=list)
+    err_GR_abs: float
+    err_GR_rel: float
+    err_Gless_abs: float
+    err_Gless_rel: float
+    history_GR_abs: list[float] = field(default_factory=list)
+    history_GR_rel: list[float] = field(default_factory=list)
+    history_Gless_abs: list[float] = field(default_factory=list)
+    history_Gless_rel: list[float] = field(default_factory=list)
 
 
 class Solver:
@@ -39,14 +46,17 @@ class Solver:
         self.tol_rel = sys.scba_tol_rel
         self.mixing = sys.scba_mixing
         self.min_iter = sys.scba_min_iter
-        self.verbose = sys.scba_verbose
+        self.verbose = sys.verbose
 
         self.GR_values: Optional[np.ndarray] = None
         self.Gless_values: Optional[np.ndarray] = None
 
-        self.history_GR: list[float] = []
-        self.history_Gless: list[float] = []
         self.result: Optional[SolverResult] = None
+
+        self.history_GR_abs: list[float] = []
+        self.history_GR_rel: list[float] = []
+        self.history_Gless_abs: list[float] = []
+        self.history_Gless_rel: list[float] = []
 
     def initialize(self) -> None:
         GR0 = np.asarray(GR_eq(self.sys, self.w), dtype=np.complex128)
@@ -60,8 +70,10 @@ class Solver:
 
         self.GR_values = GR0
         self.Gless_values = Gless0
-        self.history_GR = []
-        self.history_Gless = []
+        self.history_GR_abs = []
+        self.history_GR_rel = []
+        self.history_Gless_abs = []
+        self.history_Gless_rel = []
         self.result = None
 
     def _require_initialized(self) -> None:
@@ -199,88 +211,118 @@ class Solver:
         if self.GR_values is None or self.Gless_values is None:
             self.initialize()
 
+        rep = self.sys.reporter()
+
+        if self.sys.verbose:
+            rep.section("SCBA nonequilibrium solve")
+            rep.info(
+                f"grid points = {len(self.w)} | "
+                f"window = [{self.w[0]:.6f}, {self.w[-1]:.6f}] | "
+                f"mixing = {self.mixing:.4f} | "
+                f"max_iter = {self.max_iter}"
+            )
+
         converged = False
         err_GR = np.inf
         err_Gless = np.inf
 
+        err_GR_abs = np.inf
+        err_GR_rel = np.inf
+        err_Gless_abs = np.inf
+        err_Gless_rel = np.inf
+
         iterator = range(1, self.max_iter + 1)
         pbar = None
 
-        if self.verbose and tqdm is not None:
+        if self.sys.verbose and tqdm is not None:
             pbar = tqdm(
                 iterator,
                 desc="SCBA solve",
                 total=self.max_iter,
                 unit="iter",
                 dynamic_ncols=True,
+                leave=True,
             )
             iterator = pbar
 
-        try:
-            for it in iterator:
-                GR_trial, Gless_trial = self.update_trials()
+        for it in iterator:
+            GR_trial, Gless_trial = self.update_trials()
 
-                GR_next = self.linear_mix(self.GR_values, GR_trial, self.mixing)
-                Gless_next = self.linear_mix(self.Gless_values, Gless_trial, self.mixing)
+            GR_next = self.linear_mix(self.GR_values, GR_trial, self.mixing)
+            Gless_next = self.linear_mix(self.Gless_values, Gless_trial, self.mixing)
 
-                err_GR_abs = self.max_abs_err(GR_next, self.GR_values)
-                err_GR_rel = self.rel_err(GR_next, self.GR_values)
+            err_GR_abs = self.max_abs_err(GR_next, self.GR_values)
+            err_GR_rel = self.rel_err(GR_next, self.GR_values)
 
-                err_Gless_abs = self.max_abs_err(Gless_next, self.Gless_values)
-                err_Gless_rel = self.rel_err(Gless_next, self.Gless_values)
+            err_Gless_abs = self.max_abs_err(Gless_next, self.Gless_values)
+            err_Gless_rel = self.rel_err(Gless_next, self.Gless_values)
 
-                err_GR = max(err_GR_abs, err_GR_rel)
-                err_Gless = max(err_Gless_abs, err_Gless_rel)
+            err_GR = max(err_GR_abs, err_GR_rel)
+            err_Gless = max(err_Gless_abs, err_Gless_rel)
 
-                self.history_GR.append(err_GR)
-                self.history_Gless.append(err_Gless)
+            self.history_GR_abs.append(err_GR_abs)
+            self.history_GR_rel.append(err_GR_rel)
+            self.history_Gless_abs.append(err_Gless_abs)
+            self.history_Gless_rel.append(err_Gless_rel)
 
-                self.GR_values = GR_next
-                self.Gless_values = Gless_next
+            self.GR_values = GR_next
+            self.Gless_values = Gless_next
 
-                if pbar is not None:
-                    pbar.set_postfix(
-                        err_GR=f"{err_GR:.3e}",
-                        err_Gless=f"{err_Gless:.3e}",
-                        mix=f"{self.mixing:.3f}",
-                    )
-                elif self.verbose:
-                    print(
-                        f"[SC Solve] iter={it:4d} "
-                        f"err_GR={err_GR:.3e} "
-                        f"err_Gless={err_Gless:.3e}",
-                        flush=True,
-                    )
-
-                gr_ok = (err_GR_abs < self.tol_abs) or (err_GR_rel < self.tol_rel)
-                gl_ok = (err_Gless_abs < self.tol_abs) or (err_Gless_rel < self.tol_rel)
-
-                if it >= self.min_iter and gr_ok and gl_ok:
-                    converged = True
-                    break
-
-        finally:
             if pbar is not None:
-                if converged:
-                    pbar.set_postfix(
-                        status="converged",
-                        err_GR=f"{err_GR:.3e}",
-                        err_Gless=f"{err_Gless:.3e}",
-                    )
-                else:
-                    pbar.set_postfix(
-                        status="stopped",
-                        err_GR=f"{err_GR:.3e}",
-                        err_Gless=f"{err_Gless:.3e}",
-                    )
-                pbar.close()
+                pbar.set_postfix(
+                    GR_abs=f"{err_GR_abs:.2e}",
+                    GR_rel=f"{err_GR_rel:.2e}",
+                    Gl_abs=f"{err_Gless_abs:.2e}",
+                    Gl_rel=f"{err_Gless_rel:.2e}",
+                    mix=f"{self.mixing:.3f}",
+                )
+            elif self.sys.verbose:
+                rep.info(
+                    f"[SCBA] iter={it:4d} "
+                    f"GR_abs={err_GR_abs:.3e} "
+                    f"GR_rel={err_GR_rel:.3e} "
+                    f"G<_abs={err_Gless_abs:.3e} "
+                    f"G<_rel={err_Gless_rel:.3e}"
+                )
+
+            gr_ok = (err_GR_abs < self.tol_abs) or (err_GR_rel < self.tol_rel)
+            gl_ok = (err_Gless_abs < self.tol_abs) or (err_Gless_rel < self.tol_rel)
+
+            if it >= self.min_iter and gr_ok and gl_ok:
+                converged = True
+                break
+
+        if pbar is not None:
+            pbar.set_postfix(
+                status="ok" if converged else "stop",
+                GR_abs=f"{err_GR_abs:.2e}",
+                GR_rel=f"{err_GR_rel:.2e}",
+                Gl_abs=f"{err_Gless_abs:.2e}",
+                Gl_rel=f"{err_Gless_rel:.2e}",
+            )
+            pbar.close()
 
         self.result = SolverResult(
             converged=converged,
             n_iter=it,
-            err_GR=err_GR,
-            err_Gless=err_Gless,
-            history_GR=self.history_GR.copy(),
-            history_Gless=self.history_Gless.copy(),
+            err_GR_abs=err_GR_abs,
+            err_GR_rel=err_GR_rel,
+            err_Gless_abs=err_Gless_abs,
+            err_Gless_rel=err_Gless_rel,
+            history_GR_abs=self.history_GR_abs.copy(),
+            history_GR_rel=self.history_GR_rel.copy(),
+            history_Gless_abs=self.history_Gless_abs.copy(),
+            history_Gless_rel=self.history_Gless_rel.copy(),
         )
+
+        if self.sys.verbose:
+            rep.info(
+                f"SCBA finished | converged={self.result.converged} | "
+                f"iterations={self.result.n_iter} | "
+                f"GR_abs={self.result.err_GR_abs:.3e} | "
+                f"GR_rel={self.result.err_GR_rel:.3e} | "
+                f"G<_abs={self.result.err_Gless_abs:.3e} | "
+                f"G<_rel={self.result.err_Gless_rel:.3e}"
+            )
+
         return self.result

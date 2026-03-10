@@ -234,126 +234,183 @@ def current_alpha(
     alpha: Lead,
     t_max: float,
     n_t: int,
-):
-    """
-    Computes Current_alpha(t) for a fixed lead alpha.
-    """
-    t = np.linspace(0.0, t_max, n_t)
-    Delta_alpha = sys.Delta(alpha)
-    Gamma_alpha = sys.Gamma0(alpha)
-    R_alpha = R_gamma(sys, alpha, "+")
-    
+    ):
+        """
+        Compute I_alpha(t) for a fixed lead alpha.
+        """
+        rep = sys.reporter()
 
-    result = sys.solve_noneq()
-    print(result.converged, result.n_iter)
-    if not result.converged:
-        raise RuntimeError(
-            f"Nonequilibrium solver failed to converge after {result.n_iter} iterations.")
+        if sys.verbose:
+            rep.section(f"Current evaluation for lead {alpha}")
+            rep.info(f"t_max = {t_max:.6f} | n_t = {n_t}")
 
-    # ---------------------------------------------------------------
-    # term1
-    # ---------------------------------------------------------------
-    def integrand1(e):
-        return (
-            fermi_dirac(e, sys.beta_fc(alpha), sys.mu_fc(alpha))
-            * A(sys, e, t, alpha)
-            * (e**2 + sys.W**2) ** (-1)
-        )
+        t = np.linspace(0.0, t_max, n_t)
+        Delta_alpha = sys.Delta(alpha)
+        Gamma_alpha = sys.Gamma0(alpha)
+        R_alpha = R_gamma(sys, alpha, "+")
 
-    val1, _ = quad_vec(integrand1, sys.e_min, sys.e_max)
-    term1 = -2 * sp.constants.e * (Gamma_alpha * sys.W**2 / (2 * np.pi)) * np.imag(val1)
+        result = sys.solve_noneq()
 
-    # ---------------------------------------------------------------
-    # term2 and term3: summed over beta lead index
-    # ---------------------------------------------------------------
-    term2 = np.zeros_like(t, dtype=np.float64)
-    term3 = np.zeros_like(t, dtype=np.float64)
+        if sys.verbose:
+            rep.info(
+                f"nonequilibrium solution ready | converged={result.converged} | "
+                f"iterations={result.n_iter} | "
+                f"err_GR={result.err_GR:.3e} | err_Gless={result.err_Gless:.3e}"
+            )
 
-    for beta in sys.lead_names:
-        Gamma_beta = sys.Gamma0(beta)
-        Delta_beta = sys.Delta(beta)
-        beta_beta = sys.beta_fc(beta)
-        mu_beta = sys.mu_fc(beta)
+        nph = bose_einstein(sys.w_q, sys.beta_ph, sys.mu_ph)
 
-        def integrand2(e):
+        # ---------------------------------------------------------------
+        # term1
+        # ---------------------------------------------------------------
+        def integrand1(e):
             return (
-                np.exp(-1j * e * t)
-                * fermi_dirac(e, beta_beta, mu_beta)
-                * A(sys, e, t, beta)
-                * Gamma_beta
+                fermi_dirac(e, sys.beta_fc(alpha), sys.mu_fc(alpha))
+                * A(sys, e, t, alpha)
                 * (e**2 + sys.W**2) ** (-1)
-                * np.conjugate(sys.GR_noneq(e + Delta_beta))
-                * 1j
-                * R_alpha
-                * np.exp(-sys.W * t)
-                * (1j * sys.W - e + Delta_alpha - Delta_beta) ** (-1)
             )
 
-        val2, _ = quad_vec(integrand2, sys.e_min, sys.e_max)
-        term2 += 2 * sp.constants.e * (sys.W**2 / (2 * np.pi)) * np.imag(val2)
+        if sys.verbose:
+            with rep.timed("Evaluating term1"):
+                val1, _ = quad_vec(integrand1, sys.e_min, sys.e_max)
+        else:
+            val1, _ = quad_vec(integrand1, sys.e_min, sys.e_max)
 
-        def integrand3(e):
+        term1 = -2 * sp.constants.e * (Gamma_alpha * sys.W**2 / (2 * np.pi)) * np.imag(val1)
+
+        # ---------------------------------------------------------------
+        # term2 and term3
+        # ---------------------------------------------------------------
+        term2 = np.zeros_like(t, dtype=np.float64)
+        term3 = np.zeros_like(t, dtype=np.float64)
+
+        if sys.verbose:
+            rep.info("Summing over lead index beta for term2 and term3")
+
+        for beta in sys.lead_names:
+            Gamma_beta = sys.Gamma0(beta)
+            Delta_beta = sys.Delta(beta)
+            beta_beta = sys.beta_fc(beta)
+            mu_beta = sys.mu_fc(beta)
+
+            if sys.verbose:
+                rep.info(
+                    f"  beta = {beta} | "
+                    f"Gamma_beta = {Gamma_beta:.6f} | "
+                    f"Delta_beta = {Delta_beta:.6f}"
+                )
+
+            def integrand2(e):
+                return (
+                    np.exp(-1j * e * t)
+                    * fermi_dirac(e, beta_beta, mu_beta)
+                    * A(sys, e, t, beta)
+                    * Gamma_beta
+                    * (e**2 + sys.W**2) ** (-1)
+                    * np.conjugate(sys.GR_noneq(e + Delta_beta))
+                    * 1j
+                    * R_alpha
+                    * np.exp(-sys.W * t)
+                    * (1j * sys.W - e + Delta_alpha - Delta_beta) ** (-1)
+                )
+
+            if sys.verbose:
+                with rep.timed(f"Evaluating term2 contribution for beta={beta}"):
+                    val2, _ = quad_vec(integrand2, sys.e_min, sys.e_max)
+            else:
+                val2, _ = quad_vec(integrand2, sys.e_min, sys.e_max)
+
+            term2 += 2 * sp.constants.e * (sys.W**2 / (2 * np.pi)) * np.imag(val2)
+
+            def integrand3(e):
+                return (
+                    np.exp(-1j * e * t)
+                    * fermi_dirac(e, beta_beta, mu_beta)
+                    * A(sys, e, t, beta)
+                    * Gamma_beta
+                    * (e**2 + sys.W**2) ** (-1)
+                    * R_alpha
+                    * np.exp(-sys.W * t)
+                    * np.conjugate(B(sys, 1j * sys.W, e, t, beta))
+                )
+
+            if sys.verbose:
+                with rep.timed(f"Evaluating term3 contribution for beta={beta}"):
+                    val3, _ = quad_vec(integrand3, sys.e_min, sys.e_max)
+            else:
+                val3, _ = quad_vec(integrand3, sys.e_min, sys.e_max)
+
+            term3 += 2 * sp.constants.e * (sys.W**2 / (2 * np.pi)) * np.imag(val3)
+
+        # ---------------------------------------------------------------
+        # term4
+        # ---------------------------------------------------------------
+        def integrand4(e):
             return (
-                np.exp(-1j * e * t)
-                * fermi_dirac(e, beta_beta, mu_beta)
-                * A(sys, e, t, beta)
-                * Gamma_beta
-                * (e**2 + sys.W**2) ** (-1)
-                * R_alpha
-                * np.exp(-sys.W * t)
-                * np.conjugate(B(sys, 1j * sys.W, e, t, beta))
+                sys.GR_noneq(e)
+                * np.conjugate(sys.GR_noneq(e))
+                * (
+                    sys.Gless_noneq(e - sys.w_q) * nph
+                    + sys.Gless_noneq(e + sys.w_q) * (nph + 1.0)
+                )
+                * (
+                    (1.0 - np.exp(-(sys.W + 1j * e) * t)) / (sys.W + 1j * e)
+                    - (1j * (e - Delta_alpha)) / ((e - Delta_alpha) ** 2 + sys.W**2)
+                )
             )
 
-        val3, _ = quad_vec(integrand3, sys.e_min, sys.e_max)
-        term3 += 2 * sp.constants.e * (sys.W**2 / (2 * np.pi)) * np.imag(val3)
+        if sys.verbose:
+            with rep.timed("Evaluating term4"):
+                val4, _ = quad_vec(integrand4, sys.e_min, sys.e_max)
+        else:
+            val4, _ = quad_vec(integrand4, sys.e_min, sys.e_max)
 
-    # ---------------------------------------------------------------
-    # term4
-    # ---------------------------------------------------------------
-    def integrand4(e):
-        return (
-            sys.GR_noneq(e)
-            * np.conjugate(sys.GR_noneq(e))
-            * (
-                sys.Gless_noneq(e - sys.w_q) * bose_einstein(sys.w_q, sys.beta_ph, sys.mu_ph)
-                + sys.Gless_noneq(e + sys.w_q) * (bose_einstein(sys.w_q, sys.beta_ph, sys.mu_ph) + 1)
+        term4 = -2 * sp.constants.e * sys.g_q**2 * (sys.W * Gamma_alpha / (2 * np.pi)) * np.imag(val4)
+
+        # ---------------------------------------------------------------
+        # term5
+        # ---------------------------------------------------------------
+        def integrand5(e):
+            return (
+                sys.GR_noneq(e + Delta_alpha)
+                * np.conjugate(sys.GR_noneq(e + Delta_alpha))
+                * sys.Gless_noneq(e + Delta_alpha - sys.w_q)
+                * nph
             )
-            * (
-                (1 - np.exp(-(sys.W + 1j * e) * t)) / (sys.W + 1j * e)
-                - (1j * (e - Delta_alpha)) / ((e - Delta_alpha) ** 2 + sys.W**2)
+
+        if sys.verbose:
+            with rep.timed("Evaluating term5"):
+                val5, _ = quad_vec(integrand5, sys.e_min, sys.e_max)
+        else:
+            val5, _ = quad_vec(integrand5, sys.e_min, sys.e_max)
+
+        term5 = -2 * sp.constants.e * sys.g_q**2 * (sys.W**2 * Gamma_alpha / (2 * np.pi)) * np.imag(val5)
+
+        # ---------------------------------------------------------------
+        # term6
+        # ---------------------------------------------------------------
+        def integrand6(e):
+            return (
+                sys.GR_noneq(e + Delta_alpha)
+                * np.conjugate(sys.GR_noneq(e + Delta_alpha))
+                * sys.Gless_noneq(e + Delta_alpha + sys.w_q)
+                * (nph + 1.0)
             )
-        )
 
-    val4, _ = quad_vec(integrand4, sys.e_min, sys.e_max)
-    term4 = -2 * sp.constants.e * sys.g_q**2 * (sys.W * Gamma_alpha / (2 * np.pi)) * np.imag(val4)
+        if sys.verbose:
+            with rep.timed("Evaluating term6"):
+                val6, _ = quad_vec(integrand6, sys.e_min, sys.e_max)
+        else:
+            val6, _ = quad_vec(integrand6, sys.e_min, sys.e_max)
 
-    # ---------------------------------------------------------------
-    # term5
-    # ---------------------------------------------------------------
-    def integrand5(e):
-        return (
-            sys.GR_noneq(e + Delta_alpha)
-            * np.conjugate(sys.GR_noneq(e + Delta_alpha))
-            * sys.Gless_noneq(e + Delta_alpha - sys.w_q)
-            * bose_einstein(sys.w_q, sys.beta_ph, sys.mu_ph)
-        )
+        term6 = -2 * sp.constants.e * sys.g_q**2 * (sys.W**2 * Gamma_alpha / (2 * np.pi)) * np.imag(val6)
 
-    val5, _ = quad_vec(integrand5, sys.e_min, sys.e_max)
-    term5 = -2 * sp.constants.e * sys.g_q**2 * (sys.W**2 * Gamma_alpha / (2 * np.pi)) * np.imag(val5)
+        I_alpha = term1 + term2 + term3 + term4 + term5 + term6
 
-    # ---------------------------------------------------------------
-    # term6
-    # ---------------------------------------------------------------
-    def integrand6(e):
-        return (
-            sys.GR_noneq(e + Delta_alpha)
-            * np.conjugate(sys.GR_noneq(e + Delta_alpha))
-            * sys.Gless_noneq(e + Delta_alpha + sys.w_q)
-            * (bose_einstein(sys.w_q, sys.beta_ph, sys.mu_ph) + 1)
-        )
+        if sys.verbose:
+            rep.info(
+                f"Current evaluation finished for lead {alpha} | "
+                f"max|I| = {np.max(np.abs(I_alpha)):.6e}"
+            )
 
-    val6, _ = quad_vec(integrand6, sys.e_min, sys.e_max)
-    term6 = -2 * sp.constants.e * sys.g_q**2 * (sys.W**2 * Gamma_alpha / (2 * np.pi)) * np.imag(val6)
-
-    I_alpha = term1 + term2 + term3 + term4 + term5 + term6
-    return t, I_alpha
+        return t, I_alpha

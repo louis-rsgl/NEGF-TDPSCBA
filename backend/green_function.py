@@ -108,7 +108,11 @@ def eq_poles_residues(sys: System):
     poly = sy.Poly(den, w)
     deg = poly.degree()
     if deg != 4:
-        raise RuntimeError(f"Expected quartic denominator, got degree {deg}")
+        raise RuntimeError(
+            "Expected quartic denominator, got degree "
+            f"{deg}\n\n"
+            f"G_expr:\n{sy.pretty(G_expr)}"
+        )
 
     roots = poly.nroots()
     dden = sy.diff(den, w)

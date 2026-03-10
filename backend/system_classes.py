@@ -7,6 +7,7 @@ Lead = str
 
 if TYPE_CHECKING:
     from backend.SCBA import Solver, SolverResult
+    from backend.reporting import Reporter
 
 
 @dataclass
@@ -29,39 +30,34 @@ class System:
     w_q: float = 0.0
     e_0: float = 0.0
 
-    # phonon bath
     beta_ph: float = 1.0
     mu_ph: float = 0.0
 
-    # central region
     beta_fd: float = 1.0
     mu_fd: float = 0.0
 
-    # integration / frequency windows
     e_min: float = -10.0
     e_max: float = 10.0
     omega_min: float = -10.0
     omega_max: float = 10.0
 
-    # solver configuration
     scba_max_iter: int = 200
     scba_tol_abs: float = 1e-8
     scba_tol_rel: float = 1e-6
     scba_mixing: float = 0.05
     scba_min_iter: int = 5
-    scba_verbose: bool = True
 
-    # cached nonequilibrium solver state
+    verbose: bool = True
+
+    _cached_eq_poles: list | None = None
     _noneq_result: Optional["SolverResult"] = None
     _noneq_solver: Optional["Solver"] = None
+    _reporter: Optional["Reporter"] = field(default=None, init=False, repr=False)
 
     @property
     def lead_names(self) -> List[Lead]:
         return list(self.leads.keys())
 
-    # -----------------------------
-    # lead-dependent accessors
-    # -----------------------------
     def Gamma0(self, lead: Lead) -> float:
         return self.leads[lead].Gamma0
 
@@ -74,9 +70,48 @@ class System:
     def mu_fc(self, lead: Lead) -> float:
         return self.leads[lead].mu
 
-    # -----------------------------
-    # nonequilibrium solver interface
-    # -----------------------------
+    def reporter(self) -> "Reporter":
+        if self._reporter is None:
+            from backend.reporting import Reporter
+            self._reporter = Reporter(verbose=self.verbose)
+        return self._reporter
+
+    def launch(self) -> None:
+        rep = self.reporter()
+
+        rep.banner()
+        rep.section("System configuration")
+
+        rep.info(f"ETA = {self.ETA:.6e}")
+        rep.info(f"DELTA = {self.DELTA:.6e}")
+        rep.info(f"W = {self.W:.6e}")
+        rep.info(f"g_q = {self.g_q:.6e}")
+        rep.info(f"w_q = {self.w_q:.6e}")
+        rep.info(f"e_0 = {self.e_0:.6e}")
+        rep.info(f"beta_ph = {self.beta_ph:.6e}")
+        rep.info(f"mu_ph = {self.mu_ph:.6e}")
+        rep.info(f"beta_fd = {self.beta_fd:.6e}")
+        rep.info(f"mu_fd = {self.mu_fd:.6e}")
+        rep.info(f"e window = [{self.e_min:.6e}, {self.e_max:.6e}]")
+        rep.info(f"omega window = [{self.omega_min:.6e}, {self.omega_max:.6e}]")
+
+        rep.info("SCBA solver parameters:")
+        rep.info(f"  max_iter = {self.scba_max_iter}")
+        rep.info(f"  tol_abs  = {self.scba_tol_abs:.3e}")
+        rep.info(f"  tol_rel  = {self.scba_tol_rel:.3e}")
+        rep.info(f"  mixing   = {self.scba_mixing:.3e}")
+        rep.info(f"  min_iter = {self.scba_min_iter}")
+
+        rep.info("Leads:")
+        for lead in self.lead_names:
+            rep.info(
+                f"  {lead}: "
+                f"Gamma0={self.Gamma0(lead):.6e}, "
+                f"Delta={self.Delta(lead):.6e}, "
+                f"beta={self.beta_fc(lead):.6e}, "
+                f"mu={self.mu_fc(lead):.6e}"
+            )
+
     def solve_noneq(
         self,
         w_min: Optional[float] = None,
@@ -84,19 +119,6 @@ class System:
         n_w: int = 2001,
         force: bool = False,
     ):
-        """
-        Solve the nonequilibrium SCBA problem and cache the solver.
-
-        Parameters
-        ----------
-        w_min, w_max
-            Frequency window for the solver grid. If omitted, use
-            self.omega_min and self.omega_max.
-        n_w
-            Number of frequency points in the solver grid.
-        force
-            If True, discard the cached solution and recompute.
-        """
         if self._noneq_solver is not None and self._noneq_result is not None and not force:
             return self._noneq_result
 
@@ -129,27 +151,3 @@ class System:
     def GA_noneq(self, e):
         self.require_noneq()
         return self._noneq_solver.GA(e)
-
-    @property
-    def noneq_result(self):
-        self.require_noneq()
-        return self._noneq_result
-
-    @property
-    def noneq_grid(self):
-        self.require_noneq()
-        return self._noneq_solver.w
-
-    @property
-    def GR_noneq_values(self):
-        self.require_noneq()
-        return self._noneq_solver.GR_values
-
-    @property
-    def Gless_noneq_values(self):
-        self.require_noneq()
-        return self._noneq_solver.Gless_values
-
-    def clear_noneq(self) -> None:
-        self._noneq_solver = None
-        self._noneq_result = None
