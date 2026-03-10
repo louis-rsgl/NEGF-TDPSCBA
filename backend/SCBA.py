@@ -246,7 +246,7 @@ class Solver:
                     )
                 elif self.verbose:
                     print(
-                        f"[noneq] iter={it:4d} "
+                        f"[SC Solve] iter={it:4d} "
                         f"err_GR={err_GR:.3e} "
                         f"err_Gless={err_Gless:.3e}",
                         flush=True,
