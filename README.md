@@ -2,15 +2,11 @@
 
 [![DOI](https://img.shields.io/badge/DOI-10.1103/PhysRevB.74.085324-blue)](https://doi.org/10.1103/PhysRevB.74.085324)
 
-**NEGF-TDPSCBA** is a numerical implementation of **time-dependent nonequilibrium Green's function (NEGF) transport** including **electron-phonon scattering** within the **self-consistent Born approximation (SCBA)**.
-
-The code computes **transient currents** in nanoscale systems with **finite lead bandwidth**, extending the exact time-dependent transport theory of
+**NEGF-TDPSCBA** implements the **time-dependent nonequilibrium Green's function (NEGF) transport** in nanoscale systems with **finite lead bandwidth** including **electron-phonon scattering** within the **self-consistent Born approximation (SCBA)**, extending the exact time-dependent transport theory of
 
 **Maciejko, Wang, and Guo**
 *Time-dependent quantum transport far from equilibrium: An exact nonlinear response theory*
 Phys. Rev. B **74**, 085324 (2006).
-
-Unlike most transient transport approaches, this framework **does not rely on the wide-band limit**, allowing the study of **finite-bandwidth effects in time-dependent transport**.
 
 # Physical Model
 

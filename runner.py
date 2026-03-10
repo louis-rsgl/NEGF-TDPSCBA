@@ -28,11 +28,11 @@ ALPHA_DEFAULT: str = "L"
 T_MAX: float = 2.0          # dimensionless, in units of ħ/Gamma
 N_T: int = 20_000
 
-W_GRID = np.array([1.0, 2.5, 5.0, 10.0, 20.0], dtype=float)
-GQ_GRID = np.array([0.0, 0.02, 0.1, 0.5], dtype=float)
+W_GRID = np.array([0.1, 1.0, 2.5, 5.0, 7.5, 10.0, 15, 20.0, 50, 100], dtype=float)
+GQ_GRID = np.array([0.0, 0.02, 0.1, 2.5, 0.5], dtype=float)
 
 PARALLEL: bool = True
-MAX_WORKERS: int = 20
+MAX_WORKERS: int = 50
 
 LOG_ROOT = Path("")
 
@@ -115,7 +115,7 @@ def make_sys(W: float, g_q: float) -> System:
         scba_max_iter=2000,
         scba_tol_abs=1e-4,
         scba_tol_rel=1e-3,
-        scba_mixing=0.01,
+        scba_mixing=0.0001,
         scba_min_iter=10,
         verbose=VERBOSE,
     )
