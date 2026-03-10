@@ -16,7 +16,7 @@ T_MAX: float = 2.0
 N_T: int = 20000
 
 W_GRID = np.array([1.0, 2.5, 5.0, 10.0, 20.0], dtype=float) * GAMMA
-GQ_GRID = np.linspace(0.0, 1.0, 2, dtype=float) * GAMMA
+GQ_GRID = np.array([0.0, 0.02, 0.1, 0.5], dtype=float) * GAMMA
 
 
 def make_sys(W: float, g_q: float) -> System:
