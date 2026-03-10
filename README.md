@@ -130,8 +130,6 @@ $$J_\alpha(t)$$
 
 is evaluated using the transient transport formalism derived from the original theory but with the phonons.
 
----
-
 # Running the Simulation
 
 Run
@@ -145,8 +143,6 @@ The runner
 * solves the nonequilibrium SCBA problem
 * computes transient currents
 * allows interactive parameter exploration.
-
----
 
 # Dependencies
 
@@ -168,8 +164,6 @@ Install with
 pip install numpy scipy matplotlib tqdm simpy
 ```
 
----
-
 # Possible Improvements
 
 Potential future developments
@@ -180,19 +174,11 @@ Potential future developments
 * pole-expansion techniques
 * parallel parameter sweeps
 
----
-
 # Author
 
 Louis Rossignol and Hong Guo
 
 McGill University
-
-Research code for studying
-
-**time-dependent quantum transport with electron–phonon scattering using NEGF-SCBA beyond the wide-band limit.**
-
----
 
 # Citation
 
