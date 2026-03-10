@@ -36,16 +36,14 @@ Transport is treated using the **nonequilibrium Green function formalism**.
 
 The system Hamiltonian is
 
-$$
-H =
+$$H =
 H_{\text{leads}}
 +
 H_{\text{device}}
 +
 H_{\text{coupling}}
 +
-H_{\text{e-ph}}
-$$
+H_{\text{e-ph}}$$
 
 ---
 
