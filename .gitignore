@@ -1,2 +1,4 @@
 *pycache*
 nohup*
+.gitignore
+.DS_Store
