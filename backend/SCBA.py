@@ -274,7 +274,7 @@ class Solver:
                     GR_rel=f"{err_GR_rel:.2e}",
                     Gl_abs=f"{err_Gless_abs:.2e}",
                     Gl_rel=f"{err_Gless_rel:.2e}",
-                    mix=f"{self.mixing:.3f}",
+                    mix=f"{self.mixing}",
                 )
             elif self.sys.verbose:
                 rep.info(
