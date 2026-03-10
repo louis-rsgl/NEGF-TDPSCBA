@@ -1,12 +1,10 @@
 # NEGF-TDPSCBA
 
-[![DOI](https://img.shields.io/badge/DOI-10.1103/PhysRevB.74.085324-blue)](https://doi.org/10.1103/PhysRevB.74.085324)
-
 **NEGF-TDPSCBA** implements the **time-dependent nonequilibrium Green's function (NEGF) transport** in nanoscale systems with **finite lead bandwidth** including **electron-phonon scattering** within the **self-consistent Born approximation (SCBA)**, extending the exact time-dependent transport theory of
 
 **Maciejko, Wang, and Guo**
 *Time-dependent quantum transport far from equilibrium: An exact nonlinear response theory*
-Phys. Rev. B **74**, 085324 (2006).
+Phys. Rev. B **74**, 085324 (2006) [![DOI](https://img.shields.io/badge/DOI-10.1103/PhysRevB.74.085324-blue)](https://doi.org/10.1103/PhysRevB.74.085324).
 
 # Physical Model
 
@@ -198,20 +196,6 @@ Research code for studying
 
 # Citation
 
-If you use this code in research, please cite
-
-Good idea — many research repos **cite the GitHub repository first**, especially before the paper associated with the code is published or finalized. The best practice is:
-
-* keep the **DOI badge if you want**
-* add a **GitHub citation block**
-* provide a **BibTeX entry for the repository**
-
-Below is the **clean replacement for your entire citation section**.
-
----
-
-# Citation
-
 If you use **NEGF-TDPSCBA** in your research, please cite the repository:
 
 ```
@@ -233,7 +217,7 @@ https://github.com/louis-rsgl/NEGF-TDPSCBA
 ```bibtex
 @software{rossignol_negf_tdpscba,
   author = {Rossignol, Louis and Guo, Hong},
-  title = {NEGF-TDPSCBA: Time-Dependent Quantum Transport with Electron-Phonon SCBA},
+  title = {NEGF-TDPSCBA: Time-Dependent far from equilibrium Quantum Transport beyond wide-band limit with Electron-Phonon SCBA},
   year = {2026},
   publisher = {GitHub},
   url = {https://github.com/louis-rsgl/NEGF-TDPSCBA}
