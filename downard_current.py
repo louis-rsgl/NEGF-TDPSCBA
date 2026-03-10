@@ -13,10 +13,10 @@ USE_FAKE_SOLVER: bool = False
 
 ALPHA_DEFAULT: str = "L"
 T_MAX: float = 2.0
-N_T: int = 2000
+N_T: int = 20000
 
 W_GRID = np.array([1.0, 2.5, 5.0, 10.0, 20.0], dtype=float) * GAMMA
-GQ_GRID = np.linspace(0.0, 1.0, 41, dtype=float)
+GQ_GRID = np.linspace(0.0, 1.0, 2, dtype=float) * GAMMA
 
 
 def make_sys(W: float, g_q: float) -> System:
@@ -39,7 +39,7 @@ def make_sys(W: float, g_q: float) -> System:
         },
         W=W,
         g_q=g_q,
-        w_q=0.2,
+        w_q=0.2 * GAMMA,
         e_0=0.0,
         beta_ph=20.0,
         mu_ph=0.0,
@@ -49,9 +49,9 @@ def make_sys(W: float, g_q: float) -> System:
         e_max=10.0,
         omega_min=-10.0,
         omega_max=10.0,
-        scba_max_iter=2000,
-        scba_tol_abs=1e-8,
-        scba_tol_rel=1e-6,
+        scba_max_iter=2000000,
+        scba_tol_abs=1e-3,
+        scba_tol_rel=1e-4,
         scba_mixing=0.01,
         scba_min_iter=5,
         scba_verbose=True,
