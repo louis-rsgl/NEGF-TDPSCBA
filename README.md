@@ -288,6 +288,7 @@ Potential future developments
 # Author
 
 Louis Rossignol and Hong Guo
+
 McGill University
 
 Research code for studying
