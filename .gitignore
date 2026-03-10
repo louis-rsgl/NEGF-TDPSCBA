@@ -2,3 +2,5 @@
 nohup*
 .gitignore
 .DS_Store
+.nfs*
+*out

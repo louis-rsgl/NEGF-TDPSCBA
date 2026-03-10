@@ -13,7 +13,7 @@ from backend.units import current_to_uA, time_to_ps
 # Global configuration
 # =============================================================================
 
-GAMMA: float = 1  # eV
+GAMMA: float = 0.01  # eV
 VERBOSE: bool = True
 USE_FAKE_SOLVER: bool = False
 
@@ -59,11 +59,11 @@ def make_sys(W: float, g_q: float) -> System:
         e_max=10.0,
         omega_min=-10.0,
         omega_max=10.0,
-        scba_max_iter=2_000_000,
-        scba_tol_abs=10,
-        scba_tol_rel=10,
-        scba_mixing=0.1,
-        scba_min_iter=1,
+        scba_max_iter=2000,
+        scba_tol_abs=1e-4,
+        scba_tol_rel=1e-3,
+        scba_mixing=0.01,
+        scba_min_iter=10,
         verbose=VERBOSE,
     )
 

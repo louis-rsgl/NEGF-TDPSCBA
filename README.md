@@ -1,118 +1,322 @@
-# NEGF-TDDPSCBA
+# NEGF-TDPSCBA
 
-Numerical implementation of a **nonequilibrium Green’s function (NEGF)** solver for transient quantum transport with **electron–phonon interactions**, computed within the **self-consistent Born approximation (SCBA)**.
+[![DOI](https://img.shields.io/badge/DOI-10.1103/PhysRevB.74.085324-blue)](https://doi.org/10.1103/PhysRevB.74.085324)
+[![Physics](https://img.shields.io/badge/Field-Quantum%20Transport-purple)]()
+[![Python](https://img.shields.io/badge/Python-3.10+-green)]()
 
-The code computes **time-dependent currents** in a quantum system coupled to multiple leads and a phonon bath.
+**NEGF-TDPSCBA** is a numerical implementation of **time-dependent nonequilibrium Green's function (NEGF) transport** including **electron-phonon scattering** within the **self-consistent Born approximation (SCBA)**.
 
-Nonequilibrium Green functions are obtained by solving a **self-consistent Dyson–Keldysh system**, and observables such as transient currents are evaluated from the converged solution.
+The code computes **transient currents** in nanoscale systems with **finite lead bandwidth**, extending the exact time-dependent transport theory of
+
+**Maciejko, Wang, and Guo**
+*Time-dependent quantum transport far from equilibrium: An exact nonlinear response theory*
+Phys. Rev. B **74**, 085324 (2006).
+
+Unlike most transient transport approaches, this framework **does not rely on the wide-band limit**, allowing the study of **finite-bandwidth effects in time-dependent transport**.
+
+---
+
+# Citation
+
+If you use this code in research, please cite
+
+Maciejko, J., Wang, J., & Guo, H.
+*Time-dependent quantum transport far from equilibrium: An exact nonlinear response theory*
+Physical Review B **74**, 085324 (2006).
+
+DOI:
+
+[https://doi.org/10.1103/PhysRevB.74.085324](https://doi.org/10.1103/PhysRevB.74.085324)
+
+BibTeX:
+
+```bibtex
+@article{Maciejko2006,
+  author = {Maciejko, Joseph and Wang, Jian and Guo, Hong},
+  title = {Time-dependent quantum transport far from equilibrium: An exact nonlinear response theory},
+  journal = {Physical Review B},
+  volume = {74},
+  pages = {085324},
+  year = {2006},
+  doi = {10.1103/PhysRevB.74.085324}
+}
+```
 
 ---
 
 # Physical Model
 
-The system consists of
+The system is a **lead–device–lead (LDL)** configuration:
+
+```
+Lead L  ──  Device  ──  Lead R
+```
+
+The scattering region contains
 
 * a **single electronic level**
-* **two leads** (L/R)
-* a **phonon mode**
-* **electron–phonon coupling**
+* a **single phonon mode**
+* coupling to two leads with **finite bandwidth**
 
-Transport is described using the **nonequilibrium Green function formalism**.
+Transport is treated using the **nonequilibrium Green function formalism**.
 
-The key quantities are the nonequilibrium Green functions
+---
 
-```
-G^R(ω),  G^<(ω)
-```
+# Hamiltonian
+
+The system Hamiltonian is
+
+$$
+H =
+H_{\text{leads}}
++
+H_{\text{device}}
++
+H_{\text{coupling}}
++
+H_{\text{e-ph}}
+$$
+
+---
+
+## Leads
+
+$$
+H_{\text{leads}}
+================
+
+\sum_{k\alpha}
+\epsilon_{k\alpha}
+c^\dagger_{k\alpha} c_{k\alpha}
+$$
+
+where ( \alpha = L, R ).
+
+---
+
+## Device (single electronic level)
+
+$$
+H_{\text{device}}
+=================
+
+\epsilon_0 ,
+d^\dagger d
+$$
+
+---
+
+## Lead–Device Coupling
+
+$$
+H_{\text{coupling}}
+===================
+
+\sum_{k\alpha}
+\left(
+t_{k\alpha} c^\dagger_{k\alpha} d
++
+t_{k\alpha}^* d^\dagger c_{k\alpha}
+\right)
+$$
+
+The coupling produces an **energy-dependent linewidth**
+
+$$
+\Gamma_\alpha(\omega)
+=====================
+
+\Gamma^0_\alpha
+\frac{W}{\omega^2 + W^2}
+$$
+
+where
+
+* (W) is the **lead bandwidth**
+* finite bandwidth effects appear explicitly in the transient dynamics.
+
+---
+
+## Phonon Mode
+
+$$
+H_{\text{ph}}
+=============
+
+\omega_q b^\dagger b
+$$
+
+---
+
+## Electron–Phonon Interaction
+
+$$
+H_{\text{e-ph}}
+===============
+
+g_q
+d^\dagger d
+(b + b^\dagger)
+$$
+
+where
+
+* (g_q) is the electron-phonon coupling
+* ( \omega_q ) the phonon frequency.
+
+Electron-phonon scattering is evaluated within **SCBA**.
+
+---
+
+# Nonequilibrium Green Functions
+
+The transport problem is formulated in terms of
+
+* retarded Green function
+
+$$
+G^R(\omega)
+$$
+
+* lesser Green function
+
+$$
+G^<(\omega)
+$$
 
 ---
 
 ## Retarded Green Function
 
-```
-G^R(ω) = [ ω − ε₀ − Δ − V^R(ω) ]⁻¹
-```
+$$
+G^R(\omega)
+===========
+
+\left[
+\omega
+------
+
+## \epsilon_0
+
+## \Sigma^R_{\text{leads}}
+
+\Sigma^R_{\text{ph}}
+\right]^{-1}
+$$
 
 ---
 
 ## Lesser Green Function
 
-```
-G^<(ω) = G^R(ω) Σ^<(ω) G^A(ω)
+$$
+G^<(\omega)
+===========
 
-G^A(ω) = (G^R(ω))*
-```
-
----
-
-## Lesser Self-Energy
-
-```
-Σ^<(ω) =
-i ∑_β f_β(ω) Γ_β^0 W / (ω² + W²)
-+
-g_q² [
-    G^<(ω − ω_q) f_ph(ω_q)
-    +
-    G^<(ω + ω_q) (f_ph(ω_q) + 1)
-]
-```
+G^R(\omega)
+\Sigma^<(\omega)
+G^A(\omega)
+$$
 
 ---
 
-## Retarded Kernel
+## Lead Self-Energy
 
-```
-V^R(ω) =
-(
-∫ dΩ/(iπ) g_q² G^<(ω − Ω)
-[
-1/(Ω − ω_q + iη)
-−
-1/(Ω + ω_q + iη)
-]
-+ ...
-)
-```
+$$
+\Sigma^<_{\text{leads}}
+=======================
 
-These equations are solved self-consistently on a frequency grid.
+i
+\sum_\alpha
+f_\alpha(\omega)
+\Gamma_\alpha(\omega)
+$$
+
+where (f_\alpha) are the Fermi distributions of the leads.
 
 ---
 
 # Numerical Method
 
-The SCBA solver performs a **fixed-point iteration**.
+The nonequilibrium Green functions are obtained through a **self-consistent SCBA iteration**.
 
-Initial guess:
+Initial guess
 
-```
-G^R₀(ω) = equilibrium Green function
-G^<_0(ω) = −2i Im[G^R₀(ω)] f(ω)
-```
+$$
+G^R_0(\omega)
+=============
 
-Iteration:
+G^R_{\text{eq}}(\omega)
+$$
 
-```
-G^R_{n+1}(ω) =
-[ ω − ε₀ − Δ − V^R(G_n) ]⁻¹
+$$
+G^<_0(\omega)
+=============
 
-G^<_{n+1}(ω) =
-G^R_{n+1} Σ^<(G_n) G^A_{n+1}
-```
+-2i,\text{Im}[G^R_0(\omega)] f(\omega)
+$$
 
-To stabilize convergence, **linear mixing** is used:
+---
 
-```
-X_{n+1} = (1 − α) X_n + α X_trial
-```
+## Iteration
 
-where
+At iteration (n)
 
-```
+$$
+G^R_{n+1}(\omega)
+=================
+
+[\omega-\epsilon_0-\Sigma^R(G_n)]^{-1}
+$$
+
+$$
+G^<_{n+1}(\omega)
+=================
+
+G^R_{n+1}
+\Sigma^<(G_n)
+G^A_{n+1}
+$$
+
+---
+
+## Mixing
+
+To stabilize convergence the solver uses **linear mixing**
+
+$$
+X_{n+1}
+=======
+
+(1-\alpha)X_n + \alpha X_{\text{trial}}
+$$
+
+with
+
+$$
 X = (G^R, G^<)
-```
+$$
 
-The converged Green functions are cached inside the `System` object and reused during observable calculations.
+---
+
+# Transient Current
+
+After convergence the **time-dependent current**
+
+$$
+J_\alpha(t)
+$$
+
+is evaluated using the transient transport formalism derived in the original theory.
+
+The current depends on functions
+
+$$
+A_\alpha(\omega,t)
+\qquad
+\Phi_\alpha(\omega,t)
+$$
+
+which are obtained from the converged Green functions.
 
 ---
 
@@ -120,33 +324,30 @@ The converged Green functions are cached inside the `System` object and reused d
 
 ```
 backend/
-│
-├── system_classes.py
-│       System definition and parameters
-│
-├── SCBA.py
-│       Self-consistent nonequilibrium solver
-│
-├── green_function.py
-│       Equilibrium Green functions and pole expansion
-│
-├── distribution.py
-│       Fermi and Bose distributions
-│
-├── observables.py
-│       Physical observables (currents, kernels)
-│
+
+system_classes.py
+    System parameters and configuration
+
+SCBA.py
+    Self-consistent NEGF solver
+
+green_function.py
+    Equilibrium Green functions and pole expansion
+
+distribution.py
+    Fermi and Bose distributions
+
+observables.py
+    Current evaluation and kernels
+
+
 runner.py
-    Interactive parameter exploration
+    Interactive simulation runner
 ```
 
 ---
 
-# System Definition
-
-A system is defined through the `System` class.
-
-Example:
+# Example System Definition
 
 ```python
 sys = System(
@@ -157,7 +358,7 @@ sys = System(
 )
 ```
 
-Lead parameters:
+Lead parameters
 
 ```python
 LeadParams(
@@ -170,39 +371,7 @@ LeadParams(
 
 ---
 
-# Solving the Nonequilibrium Problem
-
-Compute the nonequilibrium Green functions:
-
-```python
-sys.solve_noneq()
-
-GR = sys.GR_noneq(0.5)
-Gless = sys.Gless_noneq(-0.3)
-```
-
-The solver result is cached automatically.
-
----
-
-# Computing Observables
-
-Example: transient current
-
-```python
-t, I = current_alpha(
-    sys,
-    alpha="L",
-    t_max=2.0,
-    n_t=2000
-)
-```
-
----
-
-# Interactive Runner
-
-The project includes a runner for exploring parameter space.
+# Running the Simulation
 
 Run
 
@@ -212,89 +381,70 @@ python runner.py
 
 The runner
 
-* precomputes currents over a grid
-* provides interactive sliders for
-
-  * phonon bandwidth `W`
-  * coupling strength `g_q`
-
----
-
-# Example Plot
-
-The runner displays the transient current
-
-```
-J_α(t)
-```
-
-showing
-
-* real part
-* imaginary part
-
-as a function of time.
+* solves the nonequilibrium SCBA problem
+* computes transient currents
+* allows interactive parameter exploration.
 
 ---
 
 # Dependencies
 
-Python ≥ 3.10 recommended.
+Python ≥ 3.10
 
-Required libraries
+Required packages
 
 ```
 numpy
 scipy
 matplotlib
+tqdm
 ```
 
 Install with
 
 ```
-pip install numpy scipy matplotlib
+pip install numpy scipy matplotlib tqdm
 ```
 
 ---
 
 # Performance Notes
 
-The solver involves
+The runtime scales roughly as
 
-* nested frequency integrals
-* self-consistent iterations
-* time-dependent quadratures
+$$
+O(N_{\text{iter}} \times N_\omega \times N_{\text{quad}})
+$$
 
-Runtime roughly scales as
+where
 
-```
-O(N_iter × N_ω × N_quad)
-```
-
-For testing and visualization, a **fake solver** can be enabled:
-
-```python
-USE_FAKE_SOLVER = True
-```
-
-in `runner.py`.
+* (N_\omega) is the frequency grid
+* (N_{\text{iter}}) the SCBA iterations
+* (N_{\text{quad}}) quadrature operations.
 
 ---
 
 # Possible Improvements
 
-Potential future improvements include
+Potential future developments
 
-* Anderson / Pulay mixing
+* Pulay / Anderson mixing
 * Broyden quasi-Newton updates
-* caching repeated integrals
-* FFT-based convolution kernels
-* parallel parameter scans
+* FFT-based convolution acceleration
+* pole-expansion techniques
+* parallel parameter sweeps
 
 ---
 
 # Author
 
+Louis Rossignol
+McGill University
+
 Research code for studying
 
-**time-dependent quantum transport with electron–phonon coupling** using NEGF and SCBA.
+**time-dependent quantum transport with electron-phonon scattering using NEGF-SCBA beyond the wide-band limit.**
+
+---
+
+If you'd like, I can also show you **three small additions that make this README look like a top-tier physics GitHub repo** (arXiv badge, figure preview, and automatic citation button).
