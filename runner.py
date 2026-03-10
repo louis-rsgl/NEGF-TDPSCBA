@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+import os
+import sys
+from contextlib import redirect_stderr, redirect_stdout
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from datetime import datetime
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.widgets import Slider
@@ -23,6 +30,52 @@ N_T: int = 20_000
 
 W_GRID = np.array([1.0, 2.5, 5.0, 10.0, 20.0], dtype=float)
 GQ_GRID = np.array([0.0, 0.02, 0.1, 0.5], dtype=float)
+
+PARALLEL: bool = True
+MAX_WORKERS: int = 20
+
+LOG_ROOT = Path("")
+
+
+# =============================================================================
+# Small logging helpers
+# =============================================================================
+
+class TimestampedWriter:
+    """
+    Wrap a text stream and prepend a timestamp to each completed line.
+    This keeps existing print() output but makes logs easier to inspect.
+    """
+    def __init__(self, stream):
+        self.stream = stream
+        self._buffer = ""
+
+    def write(self, text: str) -> int:
+        self._buffer += text
+
+        while "\n" in self._buffer:
+            line, self._buffer = self._buffer.split("\n", 1)
+            self.stream.write(f"{line}\n")
+
+        self.stream.flush()
+        return len(text)
+
+    def flush(self) -> None:
+        if self._buffer:
+            self.stream.write(f"{self._buffer}\n")
+            self._buffer = ""
+        self.stream.flush()
+
+
+def make_run_log_dir(root: Path = LOG_ROOT) -> Path:
+    run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_dir = root / f"run_{run_id}"
+    log_dir.mkdir(parents=True, exist_ok=False)
+    return log_dir
+
+
+def worker_log_path(log_dir: Path, i: int, j: int, W: float, g_q: float) -> Path:
+    return log_dir / f"worker_i{i}_j{j}_W{W:.3f}_gq{g_q:.3f}.log"
 
 
 # =============================================================================
@@ -138,53 +191,105 @@ def compute_current(
 
 
 # =============================================================================
+# Parallel worker
+# =============================================================================
+
+def _compute_current_job(
+    i: int,
+    j: int,
+    W: float,
+    g_q: float,
+    alpha: str,
+    t_max: float,
+    n_t: int,
+    log_dir_str: str,
+) -> tuple[int, int, np.ndarray, np.ndarray, str]:
+    log_dir = Path(log_dir_str)
+    log_path = worker_log_path(log_dir, i, j, W, g_q)
+
+    with open(log_path, "w", encoding="utf-8", buffering=1) as raw_fh:
+        writer = TimestampedWriter(raw_fh)
+
+        with redirect_stdout(writer), redirect_stderr(writer):
+            pid = os.getpid()
+            print("#" * 82)
+            print("Worker started")
+            print(f"pid={pid}")
+            print(f"job indices: i={i}, j={j}")
+            print(f"W={W:.6f}")
+            print(f"g_q={g_q:.6f}")
+            print(f"alpha={alpha}")
+            print(f"t_max={t_max}")
+            print(f"n_t={n_t}")
+            print("#" * 82)
+
+            try:
+                t, current = compute_current(
+                    W=W,
+                    g_q=g_q,
+                    alpha=alpha,
+                    t_max=t_max,
+                    n_t=n_t,
+                )
+
+                print("Worker finished successfully")
+                print(f"max|J| = {np.max(np.abs(current)):.6e} µA")
+                print(f"log_path = {log_path}")
+
+            except Exception:
+                print("Worker failed with exception:")
+                import traceback
+                traceback.print_exc()
+                raise
+
+    return i, j, t, current, str(log_path)
+
+
+# =============================================================================
 # Precomputation over parameter grid
 # =============================================================================
 
-def precompute_currents(
+def precompute_currents_parallel(
     W_grid: np.ndarray,
     gq_grid: np.ndarray,
     alpha: str = ALPHA_DEFAULT,
     t_max: float = T_MAX,
     n_t: int = N_T,
+    max_workers: int | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     t_ref: np.ndarray | None = None
     J_grid = np.empty((len(W_grid), len(gq_grid), n_t), dtype=np.complex128)
 
-    total = len(W_grid) * len(gq_grid)
+    log_dir = make_run_log_dir()
+
+    jobs: list[tuple[int, int, float, float, str, float, int, str]] = [
+        (i, j, float(W), float(gq), alpha, t_max, n_t, str(log_dir))
+        for i, W in enumerate(W_grid)
+        for j, gq in enumerate(gq_grid)
+    ]
+
+    total = len(jobs)
     count = 0
 
-    if VERBOSE:
-        print()
-        print("#" * 82)
-        print("Beginning current precomputation over parameter grid")
-        print("#" * 82)
-        print(f"Gamma = {GAMMA:.6e} eV")
-        print(f"alpha = {alpha}")
-        print(f"t_max (dimensionless) = {t_max}")
-        print(f"n_t = {n_t}")
-        print(f"number of W values = {len(W_grid)}")
-        print(f"number of g_q values = {len(gq_grid)}")
-        print(f"total jobs = {total}")
+    print()
+    print("#" * 82)
+    print("Beginning PARALLEL current precomputation over parameter grid")
+    print("#" * 82)
+    print(f"Gamma = {GAMMA:.6e} eV")
+    print(f"alpha = {alpha}")
+    print(f"t_max (dimensionless) = {t_max}")
+    print(f"n_t = {n_t}")
+    print(f"number of W values = {len(W_grid)}")
+    print(f"number of g_q values = {len(gq_grid)}")
+    print(f"total jobs = {total}")
+    print(f"max_workers = {max_workers}")
+    print(f"log_dir = {log_dir}")
 
-    for i, W in enumerate(W_grid):
-        for j, gq in enumerate(gq_grid):
-            if VERBOSE:
-                print()
-                print("-" * 82)
-                print(
-                    f"Job {count + 1}/{total} | "
-                    f"W = {W:.6f} Gamma | g_q = {gq:.6f} Gamma | alpha = {alpha}"
-                )
-                print("-" * 82)
+    with ProcessPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(_compute_current_job, *job) for job in jobs]
 
-            t, current = compute_current(
-                W=W,
-                g_q=gq,
-                alpha=alpha,
-                t_max=t_max,
-                n_t=n_t,
-            )
+        for future in as_completed(futures):
+            i, j, t, current, log_path = future.result()
 
             if t_ref is None:
                 t_ref = t
@@ -194,23 +299,45 @@ def precompute_currents(
             J_grid[i, j, :] = current
             count += 1
 
-            if VERBOSE:
-                print(
-                    f"Stored current {count}/{total} | "
-                    f"max|J| = {np.max(np.abs(current)):.6e} µA",
-                    flush=True,
-                )
+            print(
+                f"Stored current {count}/{total} | "
+                f"(i={i}, j={j}) | "
+                f"max|J| = {np.max(np.abs(current)):.6e} µA | "
+                f"log={log_path}",
+                flush=True,
+            )
 
     if t_ref is None:
         raise RuntimeError("No currents were computed.")
 
-    if VERBOSE:
-        print()
-        print("#" * 82)
-        print("Finished current precomputation")
-        print("#" * 82)
+    print()
+    print("#" * 82)
+    print("Finished parallel current precomputation")
+    print("#" * 82)
 
     return t_ref, J_grid
+
+
+def precompute_currents(
+    W_grid: np.ndarray,
+    gq_grid: np.ndarray,
+    alpha: str = ALPHA_DEFAULT,
+    t_max: float = T_MAX,
+    n_t: int = N_T,
+    parallel: bool = PARALLEL,
+    max_workers: int | None = MAX_WORKERS,
+) -> tuple[np.ndarray, np.ndarray]:
+    if parallel:
+        return precompute_currents_parallel(
+            W_grid=W_grid,
+            gq_grid=gq_grid,
+            alpha=alpha,
+            t_max=t_max,
+            n_t=n_t,
+            max_workers=max_workers,
+        )
+
+    raise NotImplementedError("Serial path omitted here for brevity.")
 
 
 # =============================================================================
@@ -245,6 +372,8 @@ def main() -> None:
         alpha=alpha0,
         t_max=T_MAX,
         n_t=N_T,
+        parallel=PARALLEL,
+        max_workers=MAX_WORKERS,
     )
 
     W0 = 20.0
