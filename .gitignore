@@ -1,9 +1,25 @@
-*pycache*
-nohup*
-.gitignore
+# Python bytecode / cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# Test / tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# macOS / editor noise
 .DS_Store
-.nfs*
+.vscode/
+.idea/
+
+# Run outputs and logs
 *.out
-run*
-run*/worker*
-*.logs
+*.log
+run_*/
+logs/
