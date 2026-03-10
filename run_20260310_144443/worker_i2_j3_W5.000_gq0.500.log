@@ -60,3 +60,9 @@ grid points = 2001 | window = [-10.000000, 10.000000] | mixing = 0.0100 | max_it
 SCBA solve:   0%|          | 0/2000 [00:00<?, ?iter/s]
 SCBA solve:   0%|          | 0/2000 [00:33<?, ?iter/s, GR_abs=4.35e-02, GR_rel=2.68e-01, Gl_abs=2.08e-02, Gl_rel=7.89e-01, mix=0.010]
 SCBA solve:   0%|          | 1/2000 [00:33<18:43:13, 33.71s/iter, GR_abs=4.35e-02, GR_rel=2.68e-01, Gl_abs=2.08e-02, Gl_rel=7.89e-01, mix=0.010]
+SCBA solve:   0%|          | 1/2000 [01:07<18:43:13, 33.71s/iter, GR_abs=5.55e-02, GR_rel=2.65e-01, Gl_abs=2.06e-02, Gl_rel=7.70e-01, mix=0.010]
+SCBA solve:   0%|          | 2/2000 [01:07<18:47:34, 33.86s/iter, GR_abs=5.55e-02, GR_rel=2.65e-01, Gl_abs=2.06e-02, Gl_rel=7.70e-01, mix=0.010]
+SCBA solve:   0%|          | 2/2000 [01:41<18:47:34, 33.86s/iter, GR_abs=8.09e-02, GR_rel=3.09e-01, Gl_abs=2.91e-02, Gl_rel=9.99e-01, mix=0.010]
+SCBA solve:   0%|          | 3/2000 [01:41<18:46:07, 33.83s/iter, GR_abs=8.09e-02, GR_rel=3.09e-01, Gl_abs=2.91e-02, Gl_rel=9.99e-01, mix=0.010]
+SCBA solve:   0%|          | 3/2000 [02:14<18:46:07, 33.83s/iter, GR_abs=1.77e-01, GR_rel=5.42e-01, Gl_abs=1.41e-01, Gl_rel=2.61e+00, mix=0.010]
+SCBA solve:   0%|          | 4/2000 [02:14<18:38:36, 33.63s/iter, GR_abs=1.77e-01, GR_rel=5.42e-01, Gl_abs=1.41e-01, Gl_rel=2.61e+00, mix=0.010]

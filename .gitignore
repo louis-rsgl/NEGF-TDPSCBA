@@ -3,4 +3,7 @@ nohup*
 .gitignore
 .DS_Store
 .nfs*
-*out
+*.out
+run*
+run*/worker*
+*.logs
