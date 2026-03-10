@@ -1,8 +1,6 @@
 # NEGF-TDPSCBA
 
 [![DOI](https://img.shields.io/badge/DOI-10.1103/PhysRevB.74.085324-blue)](https://doi.org/10.1103/PhysRevB.74.085324)
-[![Physics](https://img.shields.io/badge/Field-Quantum%20Transport-purple)]()
-[![Python](https://img.shields.io/badge/Python-3.10+-green)]()
 
 **NEGF-TDPSCBA** is a numerical implementation of **time-dependent nonequilibrium Green's function (NEGF) transport** including **electron-phonon scattering** within the **self-consistent Born approximation (SCBA)**.
 
