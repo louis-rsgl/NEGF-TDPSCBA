@@ -253,9 +253,13 @@ def current_alpha(
 
         if sys.verbose:
             rep.info(
-                f"nonequilibrium solution ready | converged={result.converged} | "
+                "nonequilibrium solution ready | "
+                f"converged={result.converged} | "
                 f"iterations={result.n_iter} | "
-                f"err_GR={result.err_GR:.3e} | err_Gless={result.err_Gless:.3e}"
+                f"GR_abs={result.err_GR_abs:.3e} | "
+                f"GR_rel={result.err_GR_rel:.3e} | "
+                f"G<_abs={result.err_Gless_abs:.3e} | "
+                f"G<_rel={result.err_Gless_rel:.3e}"
             )
 
         nph = bose_einstein(sys.w_q, sys.beta_ph, sys.mu_ph)

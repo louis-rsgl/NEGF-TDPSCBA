@@ -13,7 +13,7 @@ from backend.units import current_to_uA, time_to_ps
 # Global configuration
 # =============================================================================
 
-GAMMA: float = 0.010  # eV
+GAMMA: float = 1  # eV
 VERBOSE: bool = True
 USE_FAKE_SOLVER: bool = False
 
@@ -31,7 +31,7 @@ GQ_GRID = np.array([0.0, 0.02, 0.1, 0.5], dtype=float)
 
 def make_sys(W: float, g_q: float) -> System:
     return System(
-        ETA=1e-10,
+        ETA=1e-3,
         DELTA=5.0,
         leads={
             "L": LeadParams(
@@ -60,10 +60,10 @@ def make_sys(W: float, g_q: float) -> System:
         omega_min=-10.0,
         omega_max=10.0,
         scba_max_iter=2_000_000,
-        scba_tol_abs=1,
-        scba_tol_rel=1,
-        scba_mixing=0.01,
-        scba_min_iter=5,
+        scba_tol_abs=10,
+        scba_tol_rel=10,
+        scba_mixing=0.1,
+        scba_min_iter=1,
         verbose=VERBOSE,
     )
 

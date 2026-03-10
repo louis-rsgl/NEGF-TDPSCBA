@@ -17,7 +17,7 @@ def format_seconds(seconds: float) -> str:
 class Reporter:
     def __init__(self, verbose: bool = True):
         self.verbose = verbose
-        self.run_name = "NEGF-TDDPSCBA"
+        self.run_name = "NEGF-TDPSCBA"
         self.author = "Louis Rossignol and Hong Guo"
 
     def banner(self):
