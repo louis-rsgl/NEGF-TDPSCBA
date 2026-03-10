@@ -14,34 +14,6 @@ Unlike most transient transport approaches, this framework **does not rely on th
 
 ---
 
-# Citation
-
-If you use this code in research, please cite
-
-Maciejko, J., Wang, J., & Guo, H.
-*Time-dependent quantum transport far from equilibrium: An exact nonlinear response theory*
-Physical Review B **74**, 085324 (2006).
-
-DOI:
-
-[https://doi.org/10.1103/PhysRevB.74.085324](https://doi.org/10.1103/PhysRevB.74.085324)
-
-BibTeX:
-
-```bibtex
-@article{Maciejko2006,
-  author = {Maciejko, Joseph and Wang, Jian and Guo, Hong},
-  title = {Time-dependent quantum transport far from equilibrium: An exact nonlinear response theory},
-  journal = {Physical Review B},
-  volume = {74},
-  pages = {085324},
-  year = {2006},
-  doi = {10.1103/PhysRevB.74.085324}
-}
-```
-
----
-
 # Physical Model
 
 The system is a **lead–device–lead (LDL)** configuration:
@@ -436,7 +408,7 @@ Potential future developments
 
 # Author
 
-Louis Rossignol
+Louis Rossignol and Hong Guo
 McGill University
 
 Research code for studying
@@ -445,4 +417,28 @@ Research code for studying
 
 ---
 
-If you'd like, I can also show you **three small additions that make this README look like a top-tier physics GitHub repo** (arXiv badge, figure preview, and automatic citation button).
+# Citation
+
+If you use this code in research, please cite
+
+Maciejko, J., Wang, J., & Guo, H.
+*Time-dependent quantum transport far from equilibrium: An exact nonlinear response theory*
+Physical Review B **74**, 085324 (2006).
+
+DOI:
+
+[https://doi.org/10.1103/PhysRevB.74.085324](https://doi.org/10.1103/PhysRevB.74.085324)
+
+BibTeX:
+
+```bibtex
+@article{Maciejko2006,
+  author = {Maciejko, Joseph and Wang, Jian and Guo, Hong},
+  title = {Time-dependent quantum transport far from equilibrium: An exact nonlinear response theory},
+  journal = {Physical Review B},
+  volume = {74},
+  pages = {085324},
+  year = {2006},
+  doi = {10.1103/PhysRevB.74.085324}
+}
+```
