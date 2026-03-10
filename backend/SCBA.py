@@ -217,8 +217,8 @@ class Solver:
             rep.section("SCBA nonequilibrium solve")
             rep.info(
                 f"grid points = {len(self.w)} | "
-                f"window = [{self.w[0]:.6f}, {self.w[-1]:.6f}] | "
-                f"mixing = {self.mixing:.4f} | "
+                f"window = [{self.w[0]}, {self.w[-1]}] | "
+                f"mixing = {self.mixing} | "
                 f"max_iter = {self.max_iter}"
             )
 
