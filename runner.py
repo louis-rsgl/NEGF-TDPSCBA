@@ -153,7 +153,7 @@ def make_sys(W: float, g_q: float) -> System:
         scba_max_iter=2_000_000,
         scba_tol_abs=1e-5,
         scba_tol_rel=1e-4,
-        scba_mixing=0.0001,
+        scba_mixing=0.01,
         scba_min_iter=10,
         verbose=VERBOSE,
     )

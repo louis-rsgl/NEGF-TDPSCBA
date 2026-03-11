@@ -4,7 +4,9 @@
 
 **Maciejko, Wang, and Guo**
 *Time-dependent quantum transport far from equilibrium: An exact nonlinear response theory*
-Phys. Rev. B **74**, 085324 (2006) [![DOI](https://img.shields.io/badge/DOI-10.1103/PhysRevB.74.085324-blue)](https://doi.org/10.1103/PhysRevB.74.085324).
+Phys. Rev. B **74**, 085324 (2006).
+
+[![DOI](https://img.shields.io/badge/DOI-10.1103/PhysRevB.74.085324-blue)](https://doi.org/10.1103/PhysRevB.74.085324)
 
 # Physical Model
 
