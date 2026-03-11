@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, TYPE_CHECKING
 
+import numpy as np
+
 Lead = str
 
 if TYPE_CHECKING:
@@ -46,6 +48,7 @@ class System:
     scba_tol_rel: float = 1e-6
     scba_mixing: float = 0.05
     scba_min_iter: int = 5
+    n_w_scba: int = 2001
 
     verbose: bool = True
 
@@ -53,6 +56,10 @@ class System:
     _noneq_result: Optional["SolverResult"] = None
     _noneq_solver: Optional["Solver"] = None
     _reporter: Optional["Reporter"] = field(default=None, init=False, repr=False)
+
+    _omega_int_xgrid: Optional[np.ndarray] = field(default=None, init=False, repr=False)
+    _omega_int_values: Optional[np.ndarray] = field(default=None, init=False, repr=False)
+    _omega_int_omega_grid: Optional[np.ndarray] = field(default=None, init=False, repr=False)
 
     @property
     def lead_names(self) -> List[Lead]:
@@ -101,6 +108,7 @@ class System:
         rep.info(f"  tol_rel  = {self.scba_tol_rel:.3e}")
         rep.info(f"  mixing   = {self.scba_mixing:.3e}")
         rep.info(f"  min_iter = {self.scba_min_iter}")
+        rep.info(f"  n_w      = {self.n_w_scba}")
 
         rep.info("Leads:")
         for lead in self.lead_names:
@@ -112,11 +120,21 @@ class System:
                 f"mu={self.mu_fc(lead):.6e}"
             )
 
+    def invalidate_noneq_cache(self) -> None:
+        self._noneq_result = None
+        self._noneq_solver = None
+        self.invalidate_omega_int_cache()
+
+    def invalidate_omega_int_cache(self) -> None:
+        self._omega_int_xgrid = None
+        self._omega_int_values = None
+        self._omega_int_omega_grid = None
+
     def solve_noneq(
         self,
         w_min: Optional[float] = None,
         w_max: Optional[float] = None,
-        n_w: int = 2001,
+        n_w: Optional[int] = None,
         force: bool = False,
     ):
         if self._noneq_solver is not None and self._noneq_result is not None and not force:
@@ -128,12 +146,15 @@ class System:
             self,
             w_min=self.omega_min if w_min is None else w_min,
             w_max=self.omega_max if w_max is None else w_max,
-            n_w=n_w,
+            n_w=self.n_w_scba if n_w is None else n_w,
         )
 
         result = solver.solve()
         self._noneq_solver = solver
         self._noneq_result = result
+
+        self.invalidate_omega_int_cache()
+
         return result
 
     def require_noneq(self) -> None:
@@ -151,3 +172,79 @@ class System:
     def GA_noneq(self, e):
         self.require_noneq()
         return self._noneq_solver.GA(e)
+
+    def build_omega_int_table(
+        self,
+        x_min: float,
+        x_max: float,
+        n_x: Optional[int] = None,
+        n_omega: Optional[int] = None,
+        force: bool = False,
+    ) -> None:
+        self.require_noneq()
+
+        if (
+            self._omega_int_xgrid is not None
+            and self._omega_int_values is not None
+            and not force
+        ):
+            return
+
+        if self._noneq_solver is not None:
+            default_n = len(self._noneq_solver.w)
+        else:
+            default_n = self.n_w_scba
+
+        if n_x is None:
+            n_x = default_n
+        if n_omega is None:
+            n_omega = default_n
+
+        rep = self.reporter()
+
+        x_grid = np.linspace(x_min, x_max, n_x, dtype=float)
+        omega_grid = np.linspace(self.omega_min, self.omega_max, n_omega, dtype=float)
+
+        kernel = 1.0 / (
+            (omega_grid - self.w_q + 1j * self.ETA)
+            * (omega_grid + self.w_q + 1j * self.ETA)
+        )
+
+        values = np.empty_like(x_grid, dtype=np.complex128)
+
+        if self.verbose:
+            rep.info(
+                "Building omega-integral table | "
+                f"x-range=[{x_grid[0]:.6e}, {x_grid[-1]:.6e}] | "
+                f"n_x={n_x} | n_omega={n_omega}"
+            )
+
+        for i, x in enumerate(x_grid):
+            integrand = self.Gless_noneq(x - omega_grid) * kernel
+            values[i] = np.trapezoid(integrand, omega_grid)
+
+        self._omega_int_xgrid = x_grid
+        self._omega_int_values = values
+        self._omega_int_omega_grid = omega_grid
+
+    def omega_int(self, x):
+        if self._omega_int_xgrid is None or self._omega_int_values is None:
+            raise RuntimeError(
+                "Omega-integral table not available. Call build_omega_int_table() first."
+            )
+
+        x_arr = np.asarray(x, dtype=np.complex128)
+        xr = x_arr.real
+
+        x_min = float(self._omega_int_xgrid[0])
+        x_max = float(self._omega_int_xgrid[-1])
+
+        if np.any(xr < x_min) or np.any(xr > x_max):
+            raise ValueError(
+                "omega_int queried outside precomputed table range: "
+                f"valid range is [{x_min}, {x_max}]"
+            )
+
+        yr = np.interp(xr, self._omega_int_xgrid, np.real(self._omega_int_values))
+        yi = np.interp(xr, self._omega_int_xgrid, np.imag(self._omega_int_values))
+        return yr + 1j * yi

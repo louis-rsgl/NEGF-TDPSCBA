@@ -24,20 +24,26 @@ VERBOSE: bool = True
 USE_FAKE_SOLVER: bool = False
 
 ALPHA_DEFAULT: str = "L"
-T_MAX: float = 2.0  # dimensionless, in units of ħ/Gamma
+T_MAX: float = 2.0
 N_T: int = 20_000
 
-W_GRID = np.array([0.1, 1.0, 2.5, 5.0, 7.5, 10.0, 15.0, 20.0, 50.0, 100.0], dtype=float)
-GQ_GRID = np.array([0.0, 0.02, 0.1, 0.5, 2.5], dtype=float)
+N_W_SCBA: int = 2001
+OMEGA_INT_N_X: int | None = 2001
+OMEGA_INT_N_OMEGA: int | None = 2001
+
+# W_GRID = np.array([0.1, 1.0, 2.5, 5.0, 7.5, 10.0, 15.0, 20.0, 50.0, 100.0], dtype=float)
+# GQ_GRID = np.array([0.0, 0.02, 0.1, 0.5, 2.5], dtype=float)
+W_GRID = np.array([1.0], dtype=float)
+GQ_GRID = np.array([0.0], dtype=float)
 
 PARALLEL: bool = True
-MAX_WORKERS: int | None = 50
+MAX_WORKERS: int | None = 1
 
 USE_TEX: bool = True
 SAVE_SVG: bool = True
 SHOW_PLOTS: bool = False
 
-RUN_BASE = Path(".")  # each run becomes ./run_YYYYMMDD_HHMMSS
+RUN_BASE = Path(".")
 
 
 # =============================================================================
@@ -45,11 +51,6 @@ RUN_BASE = Path(".")  # each run becomes ./run_YYYYMMDD_HHMMSS
 # =============================================================================
 
 class TimestampedWriter:
-    """
-    Wrap a text stream and prepend a timestamp to each completed line.
-    This keeps existing print() output but makes logs easier to inspect.
-    """
-
     def __init__(self, stream) -> None:
         self.stream = stream
         self._buffer = ""
@@ -59,7 +60,6 @@ class TimestampedWriter:
 
         while "\n" in self._buffer:
             line, self._buffer = self._buffer.split("\n", 1)
-            ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             self.stream.write(f"{line}\n")
 
         self.stream.flush()
@@ -67,7 +67,6 @@ class TimestampedWriter:
 
     def flush(self) -> None:
         if self._buffer:
-            ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             self.stream.write(f"{self._buffer}\n")
             self._buffer = ""
         self.stream.flush()
@@ -103,6 +102,9 @@ def write_run_metadata(run_dir: Path) -> None:
         "ALPHA_DEFAULT": ALPHA_DEFAULT,
         "T_MAX": T_MAX,
         "N_T": N_T,
+        "N_W_SCBA": N_W_SCBA,
+        "OMEGA_INT_N_X": OMEGA_INT_N_X,
+        "OMEGA_INT_N_OMEGA": OMEGA_INT_N_OMEGA,
         "W_GRID": W_GRID.tolist(),
         "GQ_GRID": GQ_GRID.tolist(),
         "PARALLEL": PARALLEL,
@@ -151,10 +153,11 @@ def make_sys(W: float, g_q: float) -> System:
         omega_min=-10.0,
         omega_max=10.0,
         scba_max_iter=2_000_000,
-        scba_tol_abs=1e-5,
-        scba_tol_rel=1e-4,
-        scba_mixing=0.01,
-        scba_min_iter=10,
+        scba_tol_abs=1,
+        scba_tol_rel=1,
+        scba_mixing=0.1,
+        scba_min_iter=1,
+        n_w_scba=N_W_SCBA,
         verbose=VERBOSE,
     )
 
@@ -226,6 +229,8 @@ def compute_current(
             alpha=alpha,
             t_max=t_max,
             n_t=n_t,
+            omega_int_n_x=OMEGA_INT_N_X,
+            omega_int_n_omega=OMEGA_INT_N_OMEGA,
         )
 
     t_ps = time_to_ps(t_dimless, GAMMA)
@@ -644,6 +649,9 @@ def main() -> None:
             print(f"USE_TEX = {USE_TEX}")
             print(f"SAVE_SVG = {SAVE_SVG}")
             print(f"SHOW_PLOTS = {SHOW_PLOTS}")
+            print(f"N_W_SCBA = {N_W_SCBA}")
+            print(f"OMEGA_INT_N_X = {OMEGA_INT_N_X}")
+            print(f"OMEGA_INT_N_OMEGA = {OMEGA_INT_N_OMEGA}")
             print("#" * 82)
 
             t_ps, J_grid_uA = precompute_currents(
