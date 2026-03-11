@@ -60,7 +60,7 @@ class TimestampedWriter:
         while "\n" in self._buffer:
             line, self._buffer = self._buffer.split("\n", 1)
             ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            self.stream.write(f"[{ts}] {line}\n")
+            self.stream.write(f"{line}\n")
 
         self.stream.flush()
         return len(text)
@@ -68,7 +68,7 @@ class TimestampedWriter:
     def flush(self) -> None:
         if self._buffer:
             ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            self.stream.write(f"[{ts}] {self._buffer}\n")
+            self.stream.write(f"{self._buffer}\n")
             self._buffer = ""
         self.stream.flush()
 
@@ -83,7 +83,7 @@ def make_run_dir(base: Path = RUN_BASE) -> Path:
 
 
 def worker_log_path(log_dir: Path, i: int, j: int, W: float, g_q: float) -> Path:
-    return log_dir / f"worker_i{i}_j{j}_W{W:.3f}_gq{g_q:.3f}.log"
+    return log_dir / f"worker_W{W:.3f}_gq{g_q:.3f}.log"
 
 
 def master_log_path(run_dir: Path) -> Path:

@@ -19,14 +19,14 @@ except ImportError:
 class SolverResult:
     converged: bool
     n_iter: int
-    err_GR_abs: float
-    err_GR_rel: float
-    err_Gless_abs: float
-    err_Gless_rel: float
-    history_GR_abs: list[float] = field(default_factory=list)
-    history_GR_rel: list[float] = field(default_factory=list)
-    history_Gless_abs: list[float] = field(default_factory=list)
-    history_Gless_rel: list[float] = field(default_factory=list)
+    res_GR_abs: float
+    res_GR_rel: float
+    res_Gless_abs: float
+    res_Gless_rel: float
+    history_res_GR_abs: list[float] = field(default_factory=list)
+    history_res_GR_rel: list[float] = field(default_factory=list)
+    history_res_Gless_abs: list[float] = field(default_factory=list)
+    history_res_Gless_rel: list[float] = field(default_factory=list)
 
 
 class Solver:
@@ -53,10 +53,10 @@ class Solver:
 
         self.result: Optional[SolverResult] = None
 
-        self.history_GR_abs: list[float] = []
-        self.history_GR_rel: list[float] = []
-        self.history_Gless_abs: list[float] = []
-        self.history_Gless_rel: list[float] = []
+        self.history_res_GR_abs: list[float] = []
+        self.history_res_GR_rel: list[float] = []
+        self.history_res_Gless_abs: list[float] = []
+        self.history_res_Gless_rel: list[float] = []
 
     def initialize(self) -> None:
         GR0 = np.asarray(GR_eq(self.sys, self.w), dtype=np.complex128)
@@ -70,10 +70,12 @@ class Solver:
 
         self.GR_values = GR0
         self.Gless_values = Gless0
-        self.history_GR_abs = []
-        self.history_GR_rel = []
-        self.history_Gless_abs = []
-        self.history_Gless_rel = []
+
+        self.history_res_GR_abs = []
+        self.history_res_GR_rel = []
+        self.history_res_Gless_abs = []
+        self.history_res_Gless_rel = []
+
         self.result = None
 
     def _require_initialized(self) -> None:
@@ -199,13 +201,26 @@ class Solver:
         return (1.0 - alpha) * old + alpha * new
 
     @staticmethod
-    def max_abs_err(a: np.ndarray, b: np.ndarray) -> float:
-        return float(np.max(np.abs(a - b)))
+    def integrated_l2_norm(x: np.ndarray, dw: float) -> float:
+        if dw <= 0.0:
+            return float(np.linalg.norm(x))
+        return float(np.sqrt(np.sum(np.abs(x) ** 2) * dw))
 
-    @staticmethod
-    def rel_err(a: np.ndarray, b: np.ndarray, eps: float = 1e-14) -> float:
-        denom = np.maximum(np.abs(b), eps)
-        return float(np.max(np.abs(a - b) / denom))
+    def absolute_residual(self, current: np.ndarray, trial: np.ndarray) -> float:
+        return self.integrated_l2_norm(current - trial, self.dw)
+
+    def relative_residual(
+        self,
+        current: np.ndarray,
+        trial: np.ndarray,
+        eps: Optional[float] = None,
+    ) -> float:
+        if eps is None:
+            eps = float(self.sys.ETA)
+
+        num = self.integrated_l2_norm(current - trial, self.dw)
+        den = max(self.integrated_l2_norm(current, self.dw), float(eps))
+        return float(num / den)
 
     def solve(self) -> SolverResult:
         if self.GR_values is None or self.Gless_values is None:
@@ -223,13 +238,11 @@ class Solver:
             )
 
         converged = False
-        err_GR = np.inf
-        err_Gless = np.inf
 
-        err_GR_abs = np.inf
-        err_GR_rel = np.inf
-        err_Gless_abs = np.inf
-        err_Gless_rel = np.inf
+        res_GR_abs = np.inf
+        res_GR_rel = np.inf
+        res_Gless_abs = np.inf
+        res_Gless_rel = np.inf
 
         iterator = range(1, self.max_iter + 1)
         pbar = None
@@ -248,45 +261,51 @@ class Solver:
         for it in iterator:
             GR_trial, Gless_trial = self.update_trials()
 
+            # Fixed-point residuals: compare the current state to the unmixed trial map.
+            res_GR_abs = self.absolute_residual(self.GR_values, GR_trial)
+            res_GR_rel = self.relative_residual(
+                self.GR_values,
+                GR_trial,
+                eps=self.sys.ETA,
+            )
+
+            res_Gless_abs = self.absolute_residual(self.Gless_values, Gless_trial)
+            res_Gless_rel = self.relative_residual(
+                self.Gless_values,
+                Gless_trial,
+                eps=self.sys.ETA,
+            )
+
+            self.history_res_GR_abs.append(res_GR_abs)
+            self.history_res_GR_rel.append(res_GR_rel)
+            self.history_res_Gless_abs.append(res_Gless_abs)
+            self.history_res_Gless_rel.append(res_Gless_rel)
+
             GR_next = self.linear_mix(self.GR_values, GR_trial, self.mixing)
             Gless_next = self.linear_mix(self.Gless_values, Gless_trial, self.mixing)
-
-            err_GR_abs = self.max_abs_err(GR_next, self.GR_values)
-            err_GR_rel = self.rel_err(GR_next, self.GR_values)
-
-            err_Gless_abs = self.max_abs_err(Gless_next, self.Gless_values)
-            err_Gless_rel = self.rel_err(Gless_next, self.Gless_values)
-
-            err_GR = max(err_GR_abs, err_GR_rel)
-            err_Gless = max(err_Gless_abs, err_Gless_rel)
-
-            self.history_GR_abs.append(err_GR_abs)
-            self.history_GR_rel.append(err_GR_rel)
-            self.history_Gless_abs.append(err_Gless_abs)
-            self.history_Gless_rel.append(err_Gless_rel)
 
             self.GR_values = GR_next
             self.Gless_values = Gless_next
 
             if pbar is not None:
                 pbar.set_postfix(
-                    GR_abs=f"{err_GR_abs:.2e}",
-                    GR_rel=f"{err_GR_rel:.2e}",
-                    Gl_abs=f"{err_Gless_abs:.2e}",
-                    Gl_rel=f"{err_Gless_rel:.2e}",
+                    GR_abs=f"{res_GR_abs:.5e}",
+                    GR_rel=f"{res_GR_rel:.5e}",
+                    Gl_abs=f"{res_Gless_abs:.5e}",
+                    Gl_rel=f"{res_Gless_rel:.5e}",
                     mix=f"{self.mixing}",
                 )
             elif self.sys.verbose:
                 rep.info(
-                    f"[SCBA] iter={it:4d} "
-                    f"GR_abs={err_GR_abs:.3e} "
-                    f"GR_rel={err_GR_rel:.3e} "
-                    f"G<_abs={err_Gless_abs:.3e} "
-                    f"G<_rel={err_Gless_rel:.3e}"
+                    f"[SCBA] iter={it:7d} "
+                    f"GR_abs={res_GR_abs:.5e} "
+                    f"GR_rel={res_GR_rel:.5e} "
+                    f"G<_abs={res_Gless_abs:.5e} "
+                    f"G<_rel={res_Gless_rel:.5e}"
                 )
 
-            gr_ok = (err_GR_abs < self.tol_abs) or (err_GR_rel < self.tol_rel)
-            gl_ok = (err_Gless_abs < self.tol_abs) or (err_Gless_rel < self.tol_rel)
+            gr_ok = (res_GR_abs < self.tol_abs) and (res_GR_rel < self.tol_rel)
+            gl_ok = (res_Gless_abs < self.tol_abs) and (res_Gless_rel < self.tol_rel)
 
             if it >= self.min_iter and gr_ok and gl_ok:
                 converged = True
@@ -295,34 +314,34 @@ class Solver:
         if pbar is not None:
             pbar.set_postfix(
                 status="ok" if converged else "stop",
-                GR_abs=f"{err_GR_abs:.2e}",
-                GR_rel=f"{err_GR_rel:.2e}",
-                Gl_abs=f"{err_Gless_abs:.2e}",
-                Gl_rel=f"{err_Gless_rel:.2e}",
+                GR_abs=f"{res_GR_abs:.5e}",
+                GR_rel=f"{res_GR_rel:.5e}",
+                Gl_abs=f"{res_Gless_abs:.5e}",
+                Gl_rel=f"{res_Gless_rel:.5e}",
             )
             pbar.close()
 
         self.result = SolverResult(
             converged=converged,
             n_iter=it,
-            err_GR_abs=err_GR_abs,
-            err_GR_rel=err_GR_rel,
-            err_Gless_abs=err_Gless_abs,
-            err_Gless_rel=err_Gless_rel,
-            history_GR_abs=self.history_GR_abs.copy(),
-            history_GR_rel=self.history_GR_rel.copy(),
-            history_Gless_abs=self.history_Gless_abs.copy(),
-            history_Gless_rel=self.history_Gless_rel.copy(),
+            res_GR_abs=res_GR_abs,
+            res_GR_rel=res_GR_rel,
+            res_Gless_abs=res_Gless_abs,
+            res_Gless_rel=res_Gless_rel,
+            history_res_GR_abs=self.history_res_GR_abs.copy(),
+            history_res_GR_rel=self.history_res_GR_rel.copy(),
+            history_res_Gless_abs=self.history_res_Gless_abs.copy(),
+            history_res_Gless_rel=self.history_res_Gless_rel.copy(),
         )
 
         if self.sys.verbose:
             rep.info(
                 f"SCBA finished | converged={self.result.converged} | "
                 f"iterations={self.result.n_iter} | "
-                f"GR_abs={self.result.err_GR_abs:.3e} | "
-                f"GR_rel={self.result.err_GR_rel:.3e} | "
-                f"G<_abs={self.result.err_Gless_abs:.3e} | "
-                f"G<_rel={self.result.err_Gless_rel:.3e}"
+                f"GR_abs={self.result.res_GR_abs:.5e} | "
+                f"GR_rel={self.result.res_GR_rel:.5e} | "
+                f"G<_abs={self.result.res_Gless_abs:.5e} | "
+                f"G<_rel={self.result.res_Gless_rel:.5e}"
             )
 
         return self.result

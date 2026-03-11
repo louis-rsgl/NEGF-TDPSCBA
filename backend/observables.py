@@ -256,10 +256,10 @@ def current_alpha(
                 "nonequilibrium solution ready | "
                 f"converged={result.converged} | "
                 f"iterations={result.n_iter} | "
-                f"GR_abs={result.err_GR_abs:.3e} | "
-                f"GR_rel={result.err_GR_rel:.3e} | "
-                f"G<_abs={result.err_Gless_abs:.3e} | "
-                f"G<_rel={result.err_Gless_rel:.3e}"
+                f"GR_res_abs={result.res_GR_abs:.3e} | "
+                f"GR_res_rel={result.res_GR_rel:.3e} | "
+                f"G<_res_abs={result.res_Gless_abs:.3e} | "
+                f"G<_res_rel={result.res_Gless_rel:.3e}"
             )
 
         nph = bose_einstein(sys.w_q, sys.beta_ph, sys.mu_ph)
