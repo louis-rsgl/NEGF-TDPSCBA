@@ -25,14 +25,14 @@ USE_FAKE_SOLVER: bool = False
 
 ALPHA_DEFAULT: str = "L"
 T_MAX: float = 2.0
-N_T: int = 20_000
+N_T: int = 4001
 
-N_W_SCBA: int = 2001
-OMEGA_INT_N_X: int | None = 2001
-OMEGA_INT_N_OMEGA: int | None = 2001
+N_W_SCBA: int = 4001
+OMEGA_INT_N_X: int | None = 4001
+OMEGA_INT_N_OMEGA: int | None = 4001
 
 W_GRID = np.array([0.01, 0.1, 1.0, 10.0, 100.0], dtype=float)
-GQ_GRID = np.array([0.0, 0.01, 0.1, 1.0, 10.0], dtype=float)
+GQ_GRID = np.array([0.0, 0.001, 0.01, 0.1, 1.0], dtype=float)
 
 PARALLEL: bool = True
 MAX_WORKERS: int | None = 25
@@ -153,7 +153,7 @@ def make_sys(W: float, g_q: float) -> System:
         scba_max_iter=20_000,
         scba_tol_abs=1e-5,
         scba_tol_rel=1e-4,
-        scba_mixing=0.01,
+        scba_mixing=0.001,
         scba_min_iter=10,
         n_w_scba=N_W_SCBA,
         verbose=VERBOSE,

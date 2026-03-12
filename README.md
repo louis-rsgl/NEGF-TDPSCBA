@@ -1,4 +1,4 @@
-# NEGF-TDPSCBA
+# NEGF-TDPSCBA: Non-Equilibrium Green Function Time Dependent Pulse with Self-Consistant Born Approximation
 
 **NEGF-TDPSCBA** implements the **time-dependent nonequilibrium Green's function (NEGF) transport** in nanoscale systems with **finite lead bandwidth** including **electron-phonon scattering** within the **self-consistent Born approximation (SCBA)**, extending the exact time-dependent transport theory of
 
