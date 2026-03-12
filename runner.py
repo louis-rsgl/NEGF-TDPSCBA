@@ -31,15 +31,13 @@ N_W_SCBA: int = 2001
 OMEGA_INT_N_X: int | None = 2001
 OMEGA_INT_N_OMEGA: int | None = 2001
 
-# W_GRID = np.array([0.1, 1.0, 2.5, 5.0, 7.5, 10.0, 15.0, 20.0, 50.0, 100.0], dtype=float)
-# GQ_GRID = np.array([0.0, 0.02, 0.1, 0.5, 2.5], dtype=float)
-W_GRID = np.array([1.0], dtype=float)
-GQ_GRID = np.array([0.0], dtype=float)
+W_GRID = np.array([0.01, 0.1, 1.0, 10.0, 100.0], dtype=float)
+GQ_GRID = np.array([0.0, 0.01, 0.1, 1.0, 10.0], dtype=float)
 
 PARALLEL: bool = True
-MAX_WORKERS: int | None = 1
+MAX_WORKERS: int | None = 25
 
-USE_TEX: bool = True
+USE_TEX: bool = False
 SAVE_SVG: bool = True
 SHOW_PLOTS: bool = False
 
@@ -148,15 +146,15 @@ def make_sys(W: float, g_q: float) -> System:
         mu_ph=0.0,
         beta_fd=0.1,
         mu_fd=0.0,
-        e_min=-10.0,
-        e_max=10.0,
-        omega_min=-10.0,
-        omega_max=10.0,
-        scba_max_iter=2_000_000,
-        scba_tol_abs=1,
-        scba_tol_rel=1,
-        scba_mixing=0.1,
-        scba_min_iter=1,
+        e_min=-20.0,
+        e_max=20.0,
+        omega_min=-20.0,
+        omega_max=20.0,
+        scba_max_iter=20_000,
+        scba_tol_abs=1e-5,
+        scba_tol_rel=1e-4,
+        scba_mixing=0.01,
+        scba_min_iter=10,
         n_w_scba=N_W_SCBA,
         verbose=VERBOSE,
     )
